@@ -6,12 +6,13 @@ from app.core.config import settings
 
 # SQLAlchemy pour les opérations complexes
 engine = create_async_engine(
-    settings.get_database_url,
+    settings.database_url,
     echo=settings.database_echo,
     future=True,
     pool_pre_ping=True,  # Importante pour Supabase
     pool_recycle=30     # Recycle les connexions toutes les 30 secondes
 )
+print(settings.database_url)
 
 AsyncSessionLocal = sessionmaker(
     engine, class_=AsyncSession, expire_on_commit=False

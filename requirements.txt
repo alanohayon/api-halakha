@@ -13,3 +13,4 @@ typing
 pytest-asyncio
 supabase
 greenlet
+asyncpg  

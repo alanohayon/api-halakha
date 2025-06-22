@@ -8,8 +8,6 @@ from app.main import app
 from app.core.database import get_db
 from app.models.base import Base
 
-# Base de données de test
-TEST_get_database_url = "postgresql+asyncpg://test:test@localhost/test_halakha"
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -19,7 +17,7 @@ def event_loop():
 
 @pytest.fixture(scope="session")
 async def test_engine():
-    engine = create_async_engine(TEST_get_database_url, echo=True)
+    engine = create_async_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield engine

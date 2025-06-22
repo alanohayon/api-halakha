@@ -29,17 +29,28 @@ async def test_supabase_client():
         print(f"❌ Erreur de connexion au client Supabase: {e}")
         return False
 
-async def test_database_connection():
-    """Test de la connexion à la base de données via SQLAlchemy"""
-    print("\n🔍 Test de la connexion à la base de données...")
+async def debug_database_connection():
+    """Debug détaillé de la connexion"""
+    print("🔍 Debug de la connexion à la base de données...")
+    
+    # Afficher l'URL (masquer le mot de passe)
+    db_url = settings.database_url
+    masked_url = db_url.replace(db_url.split('@')[0].split(':')[-1], '***')
+    print(f"URL utilisée: {masked_url}")
+    
+    # Afficher les variables d'environnement
+    print(f"SUPABASE_URL: {os.getenv('SUPABASE_URL')}")
+    print(f"DATABASE_URL présent: {'DATABASE_URL' in os.environ}")
     
     try:
         async with engine.begin() as conn:
-            result = await conn.execute(text("SELECT 1"))
-            print("✅ Connexion à la base de données réussie")
+            result = await conn.execute(text("SELECT version()"))
+            version = result.scalar()
+            print(f"✅ Connexion réussie - PostgreSQL: {version}")
             return True
     except Exception as e:
-        print(f"❌ Erreur de connexion à la base de données: {e}")
+        print(f"❌ Erreur: {e}")
+        print(f"Type d'erreur: {type(e)}")
         return False
 
 def check_environment_variables():
@@ -87,7 +98,7 @@ def main():
     # Tests de connexion
     async def run_tests():
         supabase_ok = await test_supabase_client()
-        db_ok = await test_database_connection()
+        db_ok = await debug_database_connection()
         
         print(f"\n📊 Résumé:")
         print(f"   Supabase Client: {'✅' if supabase_ok else '❌'}")
