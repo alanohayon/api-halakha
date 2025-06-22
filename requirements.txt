@@ -12,3 +12,4 @@ pytest
 typing
 pytest-asyncio
 supabase
+greenlet

@@ -3,7 +3,6 @@ import asyncio
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..repositories.halakha_repository import HalakhaRepository
 from ..schemas.halakha import HalakhaCreate, ProcessingStatus
 from .openai_service import OpenAIService
 from .notion_service import NotionService
@@ -18,7 +17,6 @@ class ProcessingService:
         notion_service: NotionService
     ):
         self.db = db
-        self.halakha_repo = HalakhaRepository(db)
         self.openai_service = openai_service
         self.notion_service = notion_service
 

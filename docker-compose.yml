@@ -5,10 +5,24 @@ services:
     build: .
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:password@db:5432/halakha
-    depends_on:
-      - db
+      # API Configuration
+      - APP_NAME=Halakha API
+      - DEBUG=true
+      - HOST=0.0.0.0
+      - PORT=8000
+      
+      # CORS
+      - BACKEND_CORS_ORIGINS=["*"]
+      
+      # Logging
+      - LOG_LEVEL=INFO
+      
+      # Rate Limiting
+      - RATE_LIMIT_REQUESTS=100
+      - RATE_LIMIT_WINDOW=3600
     volumes:
       - ./app:/app/app
 

@@ -8,61 +8,97 @@ import os
 import sys
 from pathlib import Path
 
-# Ajouter le répertoire parent au path pour importer les modules
+# Ajouter le répertoire parent au path pour importer les modules de l'app
 sys.path.append(str(Path(__file__).parent.parent))
 
-from app.core.database import get_supabase
-from app.services.supabase_service import SupabaseService
+from app.core.config import settings
+from app.core.database import supabase, engine
+from sqlalchemy import text
 
-async def test_supabase_connection():
-    """Test de la connexion à Supabase"""
+async def test_supabase_client():
+    """Test de la connexion au client Supabase"""
+    print("🔍 Test de la connexion au client Supabase...")
+    
     try:
-        print("🔍 Test de connexion à Supabase...")
-        
-        # Obtenir le client Supabase
-        supabase_client = get_supabase()
-        
-        # Créer le service
-        service = SupabaseService(supabase_client)
-        
-        # Test simple - récupérer les halakhot
-        print("📋 Récupération des halakhot...")
-        halakhot = await service.get_halakhot()
-        
-        print(f"✅ Connexion réussie ! {len(halakhot)} halakhot trouvées")
-        
-        # Afficher quelques détails si des données existent
-        if halakhot:
-            print("\n📝 Première halakha :")
-            first_halakha = halakhot[0]
-            for key, value in first_halakha.items():
-                if key != 'content' or len(str(value)) < 100:  # Éviter d'afficher tout le contenu
-                    print(f"  {key}: {value}")
-            
-            # Test de recherche par thème
-            print("\n🔍 Test de recherche par thème...")
-            if 'theme' in first_halakha and first_halakha['theme']:
-                theme_results = await service.search_halakhot(theme=first_halakha['theme'])
-                print(f"  Halakhot avec le thème '{first_halakha['theme']}': {len(theme_results)}")
-            
-            # Test de recherche par titre
-            print("\n🔍 Test de recherche par titre...")
-            if 'title' in first_halakha and first_halakha['title']:
-                # Prendre les premiers mots du titre pour la recherche
-                title_words = first_halakha['title'].split()[:2]
-                search_title = ' '.join(title_words)
-                title_results = await service.search_halakhot(title=search_title)
-                print(f"  Halakhot avec '{search_title}' dans le titre: {len(title_results)}")
-        else:
-            print("ℹ️  Aucune halakha trouvée dans la base de données")
-            
+        # Test simple de la connexion en essayant d'accéder aux métadonnées
+        # Cette approche fonctionne même sans tables spécifiques
+        response = supabase.auth.get_user()
+        print("✅ Connexion au client Supabase réussie")
+        return True
     except Exception as e:
-        print(f"❌ Erreur de connexion : {e}")
-        print("\n🔧 Vérifiez que :")
-        print("  1. Le fichier .env existe avec les bonnes variables")
-        print("  2. SUPABASE_URL et SUPABASE_ANON_KEY sont corrects")
-        print("  3. Votre projet Supabase est actif")
-        print("  4. La table 'halakhot' existe avec les colonnes : id, title, content, theme, source_id, question_id, answer_id")
+        print(f"❌ Erreur de connexion au client Supabase: {e}")
+        return False
+
+async def test_database_connection():
+    """Test de la connexion à la base de données via SQLAlchemy"""
+    print("\n🔍 Test de la connexion à la base de données...")
+    
+    try:
+        async with engine.begin() as conn:
+            result = await conn.execute(text("SELECT 1"))
+            print("✅ Connexion à la base de données réussie")
+            return True
+    except Exception as e:
+        print(f"❌ Erreur de connexion à la base de données: {e}")
+        return False
+
+def check_environment_variables():
+    """Vérification des variables d'environnement"""
+    print("🔍 Vérification des variables d'environnement...")
+    
+    required_vars = [
+        'SUPABASE_URL',
+        'SUPABASE_ANON_KEY',
+        'SUPABASE_SERVICE_KEY'
+    ]
+    
+    missing_vars = []
+    for var in required_vars:
+        value = os.getenv(var)
+        if not value or value.startswith('your_'):
+            missing_vars.append(var)
+            print(f"❌ {var}: Non configuré ou valeur placeholder")
+        else:
+            print(f"✅ {var}: Configuré")
+    
+    if missing_vars:
+        print(f"\n⚠️  Variables manquantes: {', '.join(missing_vars)}")
+        return False
+    
+    return True
+
+def main():
+    """Fonction principale"""
+    print("🚀 Test de connexion à Supabase\n")
+    
+    # Vérifier les variables d'environnement
+    env_ok = check_environment_variables()
+    
+    if not env_ok:
+        print("\n📝 Instructions:")
+        print("1. Créez un fichier .env à la racine du projet")
+        print("2. Ajoutez vos vraies valeurs Supabase:")
+        print("   SUPABASE_URL=https://your-project-id.supabase.co")
+        print("   SUPABASE_ANON_KEY=your_anon_key")
+        print("   SUPABASE_SERVICE_KEY=your_service_key")
+        print("3. Relancez ce script")
+        return
+    
+    # Tests de connexion
+    async def run_tests():
+        supabase_ok = await test_supabase_client()
+        db_ok = await test_database_connection()
+        
+        print(f"\n📊 Résumé:")
+        print(f"   Supabase Client: {'✅' if supabase_ok else '❌'}")
+        print(f"   Database: {'✅' if db_ok else '❌'}")
+        
+        if supabase_ok and db_ok:
+            print("\n🎉 Toutes les connexions fonctionnent correctement!")
+        else:
+            print("\n🔧 Des problèmes de connexion ont été détectés.")
+    
+    asyncio.run(run_tests())
 
 if __name__ == "__main__":
-    asyncio.run(test_supabase_connection()) 
+    main() 
