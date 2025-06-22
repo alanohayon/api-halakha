@@ -12,5 +12,7 @@ pytest
 typing
 pytest-asyncio
 supabase
+openai
+notion_client
 greenlet
 asyncpg  

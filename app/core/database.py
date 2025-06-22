@@ -12,7 +12,6 @@ engine = create_async_engine(
     pool_pre_ping=True,  # Importante pour Supabase
     pool_recycle=30     # Recycle les connexions toutes les 30 secondes
 )
-print(settings.database_url)
 
 AsyncSessionLocal = sessionmaker(
     engine, class_=AsyncSession, expire_on_commit=False
