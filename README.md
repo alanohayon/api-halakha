@@ -1,5 +1,6 @@
 # api-halakha
 
+``` bash
 halakha-api/
 ├── README.md
 ├── pyproject.toml
@@ -71,3 +72,4 @@ halakha-api/
 └── scripts/
     ├── init_db.py
     └── migrate_data.py
+```

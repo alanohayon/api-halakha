@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.api.v1.router import api_router
 
 # Créer l'application FastAPI
 app = FastAPI(
@@ -28,16 +29,5 @@ async def root():
 async def health_check():
     return {"status": "OK", "message": "Service is running"}
 
-# Route d'exemple pour les halakhot
-@app.get("/api/v1/halakhot")
-async def get_halakhot():
-    return {
-        "halakhot": [
-            {
-                "id": 1,
-                "title": "Exemple de Halakha",
-                "content": "Contenu d'exemple",
-                "source": "Source d'exemple"
-            }
-        ]
-    }
+# Inclure les routes API v1
+app.include_router(api_router, prefix="/api/v1")
