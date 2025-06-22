@@ -5,6 +5,7 @@ from .config import get_settings
 
 settings = get_settings()
 
+# centraliser la configuration des logs (format, niveau, couleur, destination)
 def configure_logging():
     """Configure structured logging"""
     

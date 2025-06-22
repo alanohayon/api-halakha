@@ -73,3 +73,50 @@ halakha-api/
     ├── init_db.py
     └── migrate_data.py
 ```
+
+``` Mermaid
+sources
+-
+id PK int
+name string
+
+questions
+-
+id PK int
+question text
+
+answers
+-
+id PK int
+answer text
+
+tags
+-
+id PK int
+name string UNIQUE
+
+themes
+-
+id PK int
+name string UNIQUE
+
+halakhot
+-
+id PK int
+title string INDEX
+content text
+source_id int FK >- sources.id
+question_id int FK >- questions.id
+answer_id int FK >- answers.id
+
+halakha_tags
+----
+halakha_id int PK FK >- halakhot.id
+tag_id int PK FK >- tags.id
+
+halakha_themes
+----
+halakha_id int PK FK >- halakhot.id
+theme_id int PK FK >- themes.id
+``` 
+

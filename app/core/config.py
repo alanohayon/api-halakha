@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     openai_project_id: Optional[str] = None
     openai_project_ai: Optional[str] = None
     
-    # Assistant IDs
+    # Assistant IDs OpenAI
     asst_halakha: Optional[str] = None
     asst_prompt_dalle: Optional[str] = None
     asst_insta_post: Optional[str] = None
@@ -30,7 +30,6 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
 
-    
     # CORS
     backend_cors_origins: List[str] = []
     
@@ -48,7 +47,6 @@ class Settings(BaseSettings):
     def get_database_url(self) -> str:
         """Retourne l'URL de la base de données Supabase"""
         # Extraire l'ID du projet depuis l'URL Supabase
-        # Format attendu: https://project-id.supabase.co
         if not self.supabase_url or not self.supabase_anon_key:
             raise ValueError("SUPABASE_URL et SUPABASE_ANON_KEY doivent être configurés")
         

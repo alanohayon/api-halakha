@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import relationship
-from .base import Base
+from app.core.database import Base
 
 class Tag(Base):
     __tablename__ = "tags"

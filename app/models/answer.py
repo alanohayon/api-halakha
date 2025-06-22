@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, Text
 from sqlalchemy.orm import relationship
-from .base import Base
+from app.core.database import Base
 
 class Answer(Base):
     __tablename__ = "answers"
