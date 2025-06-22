@@ -1,5 +1,5 @@
 fastapi
-uvicorn
+uvicorn[standard]
 sqlalchemy
 asyncpg
 pydantic
@@ -9,4 +9,6 @@ httpx
 structlog
 python-multipart
 pytest
+typing
 pytest-asyncio
+supabase

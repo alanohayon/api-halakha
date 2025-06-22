@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
+from supabase import Client
+from typing import List, Optional
 
-from ....core.database import get_db
-from ....schemas.halakha import HalakhaResponse, HalakhaCreate, HalakhaUpdate
-from ....services.halakha_service import HalakhaService
+from app.core.database import get_db, get_supabase
+from app.services.supabase_service import SupabaseService
+from app.schemas.halakha import HalakhaResponse, HalakhaCreate
+from app.models.halakha import Halakha
 
 router = APIRouter()
 
@@ -81,3 +83,33 @@ async def process_halakha(
     """Traiter une halakha avec OpenAI et publier vers Notion"""
     # Implémentation du traitement
     pass
+
+@router.get("/halakhot-supabase", response_model=List[dict])
+async def get_halakhot_supabase(supabase: Client = Depends(get_supabase)):
+    service = SupabaseService(supabase)
+    return await service.get_halakhot()
+
+@router.post("/halakhot-supabase")
+async def create_halakha_supabase(
+    halakha_data: dict,
+    supabase: Client = Depends(get_supabase)
+):
+    service = SupabaseService(supabase)
+    return await service.create_halakha(halakha_data)
+
+# Méthode 2: Utiliser SQLAlchemy (pour les requêtes complexes)
+@router.get("/halakhot-sqlalchemy", response_model=List[HalakhaResponse])
+async def get_halakhot_sqlalchemy(db: AsyncSession = Depends(get_db)):
+    from sqlalchemy import select
+    result = await db.execute(select(Halakha))
+    return result.scalars().all()
+
+# Recherche avec filtres
+@router.get("/halakhot/search")
+async def search_halakhot(
+    category: Optional[str] = None,
+    source: Optional[str] = None,
+    supabase: Client = Depends(get_supabase)
+):
+    service = SupabaseService(supabase)
+    return await service.search_halakhot(category, source)

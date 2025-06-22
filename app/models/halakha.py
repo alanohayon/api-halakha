@@ -1,20 +1,23 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean
-from sqlalchemy.sql import func
+from sqlalchemy import Column, Integer, String, Text, ForeignKey
+from sqlalchemy.orm import relationship
 from .base import Base
 
 class Halakha(Base):
     __tablename__ = "halakhot"
-    
+
     id = Column(Integer, primary_key=True, index=True)
-    question = Column(String(500), nullable=False, index=True)
+    title = Column(String, index=True)
     content = Column(Text, nullable=False)
-    answer = Column(Text, nullable=True)
-    text_post = Column(Text, nullable=True)
-    legend = Column(Text, nullable=True)
-    prompt_dalle = Column(Text, nullable=True)
-    image_url = Column(String(500), nullable=True)
-    notion_page_id = Column(String(100), nullable=True)
-    status = Column(String(50), default="pending", index=True)
-    processed_at = Column(DateTime(timezone=True), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    theme = Column(String, index=True)
+    tags = Column(String, index=True)
+
+    # Clé étrangère pour la source
+    source_id = Column(Integer, ForeignKey('sources.id'), nullable=False)
+    question_id = Column(Integer, ForeignKey('questions.id', ondelete="CASCADE"), nullable=False)
+    answer_id = Column(Integer, ForeignKey('answers.id', ondelete="CASCADE"), nullable=False)
+    
+    # Relations
+    source = relationship("Source", back_populates="halakhot")
+    question = relationship("Question", back_populates="halakha")
+    answer = relationship("Answer", back_populates="halakha")
+    tags = relationship("Tag", secondary="halakha_tags", back_populates="halakhot")
