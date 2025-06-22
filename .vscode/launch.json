@@ -1,0 +1,9 @@
+{
+    "name": "Debug Current File Direct",
+    "type": "python",
+    "request": "launch",
+    "program": "${file}",
+    "console": "integratedTerminal",
+    "cwd": "${workspaceFolder}",
+    "python": "${workspaceFolder}/monenv/bin/python"
+}

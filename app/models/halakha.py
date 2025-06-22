@@ -11,7 +11,7 @@ class Halakha(Base):
     difficulty_level = Column(Integer, nullable=True)
 
     # Clé étrangère pour la source
-    source_id = Column(Integer, ForeignKey('sources.id'), nullable=False)
+    source_id = Column(Integer, ForeignKey('sources.id', ondelete="CASCADE"), nullable=False)
     question_id = Column(Integer, ForeignKey('questions.id', ondelete="CASCADE"), nullable=False)
     answer_id = Column(Integer, ForeignKey('answers.id', ondelete="CASCADE"), nullable=False)
     
