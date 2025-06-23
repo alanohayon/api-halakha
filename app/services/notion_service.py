@@ -63,7 +63,7 @@ class NotionService:
         
         logger.info(" ☑️ 📄 Propriétés de la page construites avec succès.")
         return properties
-
+    
     def create_post_page(self, processed_data: dict, add_day: int, image_url: str = None) -> dict:
         """
         Crée une nouvelle page dans la base de données Notion des posts.

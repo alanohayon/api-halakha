@@ -47,7 +47,8 @@ halakha-api/
 │   │   ├── __init__.py
 │   │   ├── halakha_service.py  # Logique métier Halakha
 │   │   ├── openai_service.py   # Service OpenAI
-│   │   ├── notion_service.py   # Service Notion
+│   │   ├── notion_service.py   # Service Notion│ 
+├── │   ├── supabase_service.py   # Service Supabase
 │   │   └── processing_service.py # Orchestration des services
 │   ├── repositories/
 │   │   ├── __init__.py
@@ -70,8 +71,8 @@ halakha-api/
 │   └── fixtures/
 │       └── sample_data.json
 └── scripts/
-    ├── init_db.py
-    └── migrate_data.py
+    ├── test_supabase_connection.py
+    └── migrate_to_supabase.py
 ```
 
 ``` Mermaid
@@ -119,4 +120,5 @@ halakha_themes
 halakha_id int PK FK >- halakhot.id
 theme_id int PK FK >- themes.id
 ``` 
+
 
