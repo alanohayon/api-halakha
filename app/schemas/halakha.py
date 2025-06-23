@@ -1,7 +1,8 @@
 from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 from enum import Enum
+from app.schemas.base import BaseResponse
 
 class ProcessingStatus(str, Enum):
     PENDING = "pending"
@@ -36,3 +37,36 @@ class HalakhaResponse(HalakhaBase):
     status: ProcessingStatus
     created_at: datetime
     updated_at: Optional[datetime] = None
+
+class ProcessHalakhaRequest(BaseModel):
+    content: str = Field(..., min_length=1, description="Contenu de la halakha à traiter")
+
+
+class SourceItem(BaseModel):
+    name: str
+    page: Optional[str] = None
+    full_src: Optional[str] = None
+    
+    
+class ProcessHalakhaResponse(BaseResponse):
+    title: Optional[str] = Field(default=None, description="Titre de la halakha")
+    difficulty_level: Optional[int] = Field(default=None, description="Niveau de difficulté de la halakha")
+    question: str = Field(..., description="Question extraite de la halakha")
+    answer: str = Field(..., description="Réponse extraite de la halakha")
+    sources: Optional[List[SourceItem]] = Field(default=None, description="Sources mentionnées")    
+    themes: Optional[List[str]] = Field(default=None, description="Thèmes identifiés")
+    tags: Optional[List[str]] = Field(default=None, description="Tags associés")
+
+    
+class ProcessCompleteHalakhaResponse(BaseResponse):
+    title: Optional[str] = Field(default=None, description="Titre de la halakha")
+    difficulty_level: Optional[int] = Field(default=None, description="Niveau de difficulté de la halakha")
+    question: str = Field(..., description="Question extraite de la halakha")
+    answer: str = Field(..., description="Réponse extraite de la halakha")
+    sources: Optional[List[SourceItem]] = Field(default=None, description="Sources mentionnées")    
+    themes: Optional[List[str]] = Field(default=None, description="Thèmes identifiés")
+    tags: Optional[List[str]] = Field(default=None, description="Tags associés")
+    text_post: str = Field(..., description="Texte généré pour le post Instagram")
+    legend: str = Field(..., description="Légende générée pour le post")
+    
+    
