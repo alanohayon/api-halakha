@@ -46,6 +46,17 @@ class SourceItem(BaseModel):
     name: str
     page: Optional[str] = None
     full_src: Optional[str] = None
+
+
+class HalakhaCompleteInput(BaseModel):
+    """Schéma pour recevoir une halakha complète avec toutes ses données"""
+    title: str = Field(..., description="Titre de la halakha")
+    difficulty_level: Optional[int] = Field(None, description="Niveau de difficulté de la halakha")
+    question: str = Field(..., description="Question de la halakha")
+    answer: str = Field(..., description="Réponse de la halakha")
+    sources: Optional[List[SourceItem]] = Field(default_factory=list, description="Sources mentionnées")
+    themes: Optional[List[str]] = Field(default_factory=list, description="Thèmes identifiés")
+    tags: Optional[List[str]] = Field(default_factory=list, description="Tags associés")
     
     
 class ProcessHalakhaResponse(BaseResponse):

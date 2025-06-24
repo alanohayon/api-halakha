@@ -1,0 +1,14 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+À ÉVITER :
+/api/v1/supabase/save-halakha     # ❌ Expose la technologie
+/api/v1/openai/process            # ❌ Couplage fort
+/api/v1/notion/create-page        # ❌ Complexité pour le client
+Verbes dans l'URL : /save-supabase, /get-halakha
+Technologies exposées : /supabase/, /openai/
+Camel case : /getHalakhot
+Underscores : /halakha_sources
+Basé sur les bonnes pratiques REST:https://blog.dreamfactory.com/best-practices-for-naming-rest-api-endpoints

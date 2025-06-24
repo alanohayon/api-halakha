@@ -3,6 +3,13 @@ from pydantic import BaseModel, Field
 from enum import Enum
 
 
+class OpenAIRequest(BaseModel):
+    prompt: str = Field(..., description="Le prompt à envoyer à OpenAI")
+    model: Optional[str] = Field(default="gpt-3.5-turbo", description="Le modèle OpenAI à utiliser")
+    temperature: Optional[float] = Field(default=0.7, ge=0.0, le=2.0, description="Température pour la génération")
+    max_tokens: Optional[int] = Field(default=1000, ge=1, description="Nombre maximum de tokens à générer")
+
+
 class MessageRole(str, Enum):
     USER = "user"
     ASSISTANT = "assistant"
