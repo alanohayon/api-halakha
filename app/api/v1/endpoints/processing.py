@@ -3,9 +3,10 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 import uuid
+from supabase import Client
 
 from app.core.config import Settings, get_settings
-from app.core.database import get_db
+from app.core.database import get_db, get_supabase
 from app.services.processing_service import ProcessingService
 from app.services.openai_service import OpenAIService
 from app.schemas.halakha import (
@@ -29,22 +30,23 @@ def get_openai_service(settings: Settings = Depends(get_settings)) -> OpenAIServ
 @router.post("/halakhot", response_model=HalakhaProcessResponse)
 async def process_single_halakha(
     *,
-    db: AsyncSession = Depends(get_db),
+    supabase: Client = Depends(get_supabase),
     settings: Settings = Depends(get_settings),
     halakha_input: HalakhaTextInput
 ):
     """
+    Cela signifie que tous les paramètres après *, doivent être passés avec leur nom :
     Traite une halakha complète : analyse avec OpenAI, sauvegarde dans Supabase 
     et publication sur Notion.
     """
     logger.info(f"Requête reçue pour traiter une nouvelle halakha.")
     try:
-        # On instancie le service d'orchestration
-        processing_service = ProcessingService(db_session=db, settings=settings)
+        # On instancie le service d'orchestration avec le client Supabase
+        processing_service = ProcessingService(supabase_client=supabase, settings=settings)
 
         # On lance le processus complet
         notion_url = await processing_service.process_and_publish_halakha(
-            halakha_content=halakha_input.halakha_content,
+            halakha_content=halakha_input.content,
             add_day_for_notion=halakha_input.schedule_days
         )
         
@@ -61,7 +63,7 @@ async def process_single_halakha(
 async def process_batch_halakhot(
     *,
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_db),
+    supabase: Client = Depends(get_supabase),
     settings: Settings = Depends(get_settings),
     halakhot_inputs: List[HalakhaTextInput]
 ):
@@ -104,7 +106,7 @@ async def process_batch_halakhot(
             _process_batch_background,
             job_id=job_id,
             halakhot_inputs=halakhot_inputs,
-            db=db,
+            supabase=supabase,
             settings=settings
         )
         
@@ -186,7 +188,7 @@ async def cancel_job(job_id: str):
 async def _process_batch_background(
     job_id: str,
     halakhot_inputs: List[HalakhaTextInput],
-    db: AsyncSession,
+    supabase: Client,
     settings: Settings
 ):
     """
@@ -198,7 +200,7 @@ async def _process_batch_background(
     job_status_store[job_id]["status"] = "running"
     job_status_store[job_id]["started_at"] = "2024-01-01T00:00:00Z"  # En production, utiliser datetime.utcnow()
     
-    processing_service = ProcessingService(db_session=db, settings=settings)
+    processing_service = ProcessingService(supabase_client=supabase, settings=settings)
     
     processed = 0
     errors = []
@@ -260,7 +262,7 @@ async def analyze_halakha(
         logger.info("Début de l'analyse de la halakha...")
         
         # Traitement avec OpenAI pour extraire les données structurées
-        processed_data = openai_service.process_halakha(request.content)
+        processed_data = openai_service.process_queries_halakha(request.content)
         
         logger.info("Analyse de la halakha terminée avec succès")
         
@@ -297,11 +299,11 @@ async def process_complete_halakha(
         
         # Étape 1: Analyser la halakha pour extraire les données structurées
         logger.info("Analyse de la halakha...")
-        processed_data = openai_service.process_halakha(request.content)
+        processed_data = openai_service.process_queries_halakha(request.content)
         
         # Étape 2: Générer le contenu pour le post et la légende
         logger.info("Génération du contenu pour le post...")
-        text_post, legend = openai_service.process_post_legent(
+        text_post, legend = openai_service.process__queries_post_legent(
             request.content, 
             processed_data["answer"]
         )

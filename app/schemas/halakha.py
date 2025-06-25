@@ -11,7 +11,7 @@ class ProcessingStatus(str, Enum):
     FAILED = "failed"
 
 class HalakhaTextInput(BaseModel):
-    halakha_content: str = Field(..., min_length=50, description="Le texte complet de la halakha à traiter.")
+    content: str = Field(..., min_length=50, description="Le texte complet de la halakha à traiter.")
     schedule_days: int = Field(0, description="Nombre de jours à ajouter pour la date de publication sur Notion.")
 
 class HalakhaProcessResponse(BaseModel):
@@ -39,7 +39,7 @@ class HalakhaResponse(HalakhaBase):
     updated_at: Optional[datetime] = None
 
 class ProcessHalakhaRequest(BaseModel):
-    content: str = Field(..., min_length=1, description="Contenu de la halakha à traiter")
+    content: str = Field(..., min_length=50, description="Contenu de la halakha à traiter")
 
 
 class SourceItem(BaseModel):

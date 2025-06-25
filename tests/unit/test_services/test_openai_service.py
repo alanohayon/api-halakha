@@ -46,7 +46,7 @@ class TestRealOpenAIIntegration:
     
 
 def test_real_process_halakha_direct():
-    """Test DIRECT avec appel réel à l'API OpenAI - process_halakha"""
+    """Test DIRECT avec appel réel à l'API OpenAI - process_queries_halakha"""
     print("🔥 Test avec VRAIE API OpenAI (sera facturé) 🔥")
 
     # Charger une halakha depuis le fichier JSON
@@ -66,9 +66,8 @@ def test_real_process_halakha_direct():
         settings = get_settings()
         service = OpenAIService(settings)
 
-        result = service.process_halakha(test_content)
+        result = service.process_queries_halakha(test_content)
 
-        
         # Afficher les résultats
         print("\n✅ RÉPONSE REÇUE:")
         print("=" * 50)
@@ -83,7 +82,7 @@ def test_real_process_halakha_direct():
         assert "question" in result, "Erreur: Pas de question dans la réponse"
         assert "answer" in result, "Erreur: Pas de réponse dans la réponse"
         
-        print("✅ Test réussi - La fonction process_halakha fonctionne correctement!")
+        print("✅ Test réussi - La fonction process_queries_halakha fonctionne correctement!")
         return result
         
     except Exception as e:

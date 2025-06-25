@@ -191,7 +191,7 @@ class OpenAIService:
             logger.error(e)
             raise
         
-    def process_halakha(self, halakha_content: str) -> dict:
+    def process_queries_halakha(self, halakha_content: str) -> dict:
         """
         Orchestre les appels à OpenAI pour traiter une halakha.
         """
@@ -212,7 +212,7 @@ class OpenAIService:
             logger.error(f"Erreur lors du traitement de la halakha par OpenAI : {e}")
             raise
 
-    def process_post_legent(self, halakha_content: str, answer: str):
+    def process__queries_post_legent(self, halakha_content: str, answer: str):
         # 2. Générer le texte pour le post
         logger.info("Génération du texte du post Instagram...")
         text_post = self._query_assistant(answer, self.settings.asst_insta_post)
