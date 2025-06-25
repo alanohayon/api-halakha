@@ -3,7 +3,6 @@ from pydantic import BaseModel, Field
 
 
 class NotionPageRequest(BaseModel):
-    parent_id: str = Field(..., description="ID de la page ou base de données parent")
     title: str = Field(..., description="Titre de la page")
     content: Optional[str] = Field(default=None, description="Contenu de la page")
     properties: Optional[Dict[str, Any]] = Field(default=None, description="Propriétés de la page")

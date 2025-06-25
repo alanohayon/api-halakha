@@ -1,9 +1,8 @@
 import logging
-from fastapi import HTTPException
-from supabase import create_client, Client
-from ..core.config import settings
+from supabase import Client, SupabaseException
 from typing import List, Dict, Optional
-from app.core.database import get_supabase
+from app.utils.performance import measure_execution_time
+
 
 logger = logging.getLogger(__name__)
 
@@ -24,10 +23,11 @@ class SupabaseService:
                 .range(skip, skip + limit - 1)
                 .execute()
             )
-            if hasattr(response, 'error') and response.error:
-                logger.error(f"Erreur Supabase get_halakhot: {response.error}")
-                return None
+
             return response.data
+        except SupabaseException as e:
+            logger.error(f"SupabaseException get_halakhot: {e}")
+            return None
         except Exception as e:
             logger.error(f"Exception get_halakhot: {e}")
             return None
@@ -41,14 +41,15 @@ class SupabaseService:
                 .eq('id', halakha_id)
                 .execute()
             )
-            if hasattr(response, 'error') and response.error:
-                logger.error(f"Erreur Supabase get_halakha_by_id: {response.error}")
-                return None
             return response.data[0] if response.data else None
+        except SupabaseException as e:
+            logger.error(f"SupabaseException get_halakha_by_id: {e}")
+            return None
         except Exception as e:
             logger.error(f"Exception get_halakha_by_id: {e}")
             return None
     
+    @measure_execution_time("Création d'une halakha Supabase")
     async def create_halakha(self, halakha_data: Dict) -> Optional[Dict]:
         """
         Crée une halakha complète avec toutes ses relations
@@ -66,7 +67,7 @@ class SupabaseService:
             }).execute()
             if hasattr(question_response, 'error') and question_response.error:
                 logger.error(f"Erreur Supabase create question: {question_response.error}")
-                return 
+                return question_response.error
             question_id = question_response.data[0]['id']
             
             # 2. Créer la réponse
@@ -76,34 +77,15 @@ class SupabaseService:
             if hasattr(answer_response, 'error') and answer_response.error:
                 logger.error(f"Erreur Supabase create answer: {answer_response.error}")
                 self.client.table('questions').delete().eq('id', question_id).execute()
-                return None
+                return answer_response.error
             answer_id = answer_response.data[0]['id']
             
-            # 3. Créer ou récupérer la première source (source principale)
+            # 3. Créer ou récupérer toutes les sources (many-to-many)
+            source_ids = []
             try:
-                if halakha_data.get('sources') and len(halakha_data['sources']) > 0:
-                    first_source = halakha_data['sources'][0]
-                    existing_source = self.client.table('sources').select('*').eq('name', first_source['name']).eq('full_src', first_source['full_src']).execute()
-                    if hasattr(existing_source, 'error') and existing_source.error:
-                        logger.error(f"Erreur Supabase select source: {existing_source.error}")
-                        self.client.table('questions').delete().eq('id', question_id).execute()
-                        self.client.table('answers').delete().eq('id', answer_id).execute()
-                        return None
-                    if existing_source.data:
-                        source_id = existing_source.data[0]['id']
-                    else:
-                        source_response = self.client.table('sources').insert({
-                            'name': first_source['name'],
-                            'page': first_source.get('page'),
-                            'full_src': first_source['full_src']
-                        }).execute()
-                        if hasattr(source_response, 'error') and source_response.error:
-                            logger.error(f"Erreur Supabase create source: {source_response.error}")
-                            self.client.table('questions').delete().eq('id', question_id).execute()
-                            self.client.table('answers').delete().eq('id', answer_id).execute()
-                            return None
-                        source_id = source_response.data[0]['id']
-                else:
+                sources_data = halakha_data.get('sources', [])
+                if not sources_data:
+                    # Créer une source par défaut si aucune n'est fournie
                     default_source = self.client.table('sources').insert({
                         'name': 'Source inconnue',
                         'page': None,
@@ -113,13 +95,41 @@ class SupabaseService:
                         logger.error(f"Erreur Supabase create default source: {default_source.error}")
                         self.client.table('questions').delete().eq('id', question_id).execute()
                         self.client.table('answers').delete().eq('id', answer_id).execute()
-                        return None
-                    source_id = default_source.data[0]['id']
+                        return default_source.error
+                    source_ids.append(default_source.data[0]['id'])
+                else:
+                    for src in sources_data:
+                        existing_source = self.client.table('sources').select('*').eq('name', src['name']).eq('full_src', src['full_src']).execute()
+                        if hasattr(existing_source, 'error') and existing_source.error:
+                            logger.error(f"Erreur Supabase select source: {existing_source.error}")
+                            self.client.table('questions').delete().eq('id', question_id).execute()
+                            self.client.table('answers').delete().eq('id', answer_id).execute()
+                            return existing_source.error
+                        if existing_source.data:
+                            sid = existing_source.data[0]['id']
+                        else:
+                            source_response = self.client.table('sources').insert({
+                                'name': src['name'],
+                                'page': src.get('page'),
+                                'full_src': src['full_src']
+                            }).execute()
+                            if hasattr(source_response, 'error') and source_response.error:
+                                logger.error(f"Erreur Supabase create source: {source_response.error}")
+                                self.client.table('questions').delete().eq('id', question_id).execute()
+                                self.client.table('answers').delete().eq('id', answer_id).execute()
+                                return source_response.error
+                            sid = source_response.data[0]['id']
+                        source_ids.append(sid)
+            except SupabaseException as e:
+                logger.error(f"SupabaseException create source: {e}")
+                self.client.table('questions').delete().eq('id', question_id).execute()
+                self.client.table('answers').delete().eq('id', answer_id).execute()
+                return str(e)
             except Exception as e:
                 logger.error(f"Exception create source: {e}")
                 self.client.table('questions').delete().eq('id', question_id).execute()
                 self.client.table('answers').delete().eq('id', answer_id).execute()
-                return None
+                return str(e)
             
             # 4. Créer la halakha principale
             try:
@@ -127,7 +137,6 @@ class SupabaseService:
                     'title': halakha_data['title'],
                     'content': halakha_data['answer'],  # On utilise answer comme content
                     'difficulty_level': halakha_data.get('difficulty_level'),
-                    'source_id': source_id,
                     'question_id': question_id,
                     'answer_id': answer_id
                 }).execute()
@@ -137,51 +146,39 @@ class SupabaseService:
                         logger.warning(f"Contrainte UNIQUE violée sur content: {halakha_response.error}")
                         self.client.table('questions').delete().eq('id', question_id).execute()
                         self.client.table('answers').delete().eq('id', answer_id).execute()
-                        return None
+                        return halakha_response.error
                     logger.error(f"Erreur Supabase create halakha: {halakha_response.error}")
                     self.client.table('questions').delete().eq('id', question_id).execute()
                     self.client.table('answers').delete().eq('id', answer_id).execute()
-                    return None
+                    return halakha_response.error
+            except SupabaseException as e:
+                logger.error(f"SupabaseException create halakha: {e}")
+                self.client.table('questions').delete().eq('id', question_id).execute()
+                self.client.table('answers').delete().eq('id', answer_id).execute()
+                return str(e)
             except Exception as e:
                 # Gestion de la contrainte UNIQUE sur content (erreur d'exception)
                 if 'unique' in str(e).lower() or 'duplicate' in str(e).lower():
                     logger.warning(f"Contrainte UNIQUE violée sur content: {e}")
                     self.client.table('questions').delete().eq('id', question_id).execute()
                     self.client.table('answers').delete().eq('id', answer_id).execute()
-                    return None
+                    return str(e)
                 logger.error(f"Exception create halakha: {e}")
                 self.client.table('questions').delete().eq('id', question_id).execute()
                 self.client.table('answers').delete().eq('id', answer_id).execute()
-                return None
+                return str(e)
             halakha_id = halakha_response.data[0]['id']
             
-            # 5. Créer les sources supplémentaires (s'il y en a)
-            if halakha_data.get('sources') and len(halakha_data['sources']) > 1:
-                for source_data in halakha_data['sources'][1:]:  # Skip la première source déjà créée
-                    try:
-                        existing_source = self.client.table('sources').select('*').eq('name', source_data['name']).eq('full_src', source_data['full_src']).execute()
-                        if hasattr(existing_source, 'error') and existing_source.error:
-                            logger.error(f"Erreur Supabase select source (supplémentaire): {existing_source.error}")
-                            continue
-                        if existing_source.data:
-                            additional_source_id = existing_source.data[0]['id']
-                        else:
-                            additional_source_response = self.client.table('sources').insert({
-                                'name': source_data['name'],
-                                'page': source_data.get('page'),
-                                'full_src': source_data['full_src']
-                            }).execute()
-                            if hasattr(additional_source_response, 'error') and additional_source_response.error:
-                                logger.error(f"Erreur Supabase create source (supplémentaire): {additional_source_response.error}")
-                                continue
-                            additional_source_id = additional_source_response.data[0]['id']
-                        self.client.table('halakha_sources').insert({
-                            'halakha_id': halakha_id,
-                            'source_id': additional_source_id
-                        }).execute()
-                    except Exception as e:
-                        logger.error(f"Exception create source (supplémentaire): {e}")
-                        continue
+            # 5. Lier toutes les sources à la halakha (many-to-many)
+            for sid in source_ids:
+                try:
+                    self.client.table('halakha_sources').insert({
+                        'halakha_id': halakha_id,
+                        'source_id': sid
+                    }).execute()
+                except Exception as e:
+                    logger.error(f"Exception create halakha_sources: {e}")
+                    continue
             
             # 6. Créer les thèmes
             if halakha_data.get('themes'):
@@ -246,10 +243,12 @@ class SupabaseService:
                 'themes': halakha_data.get('themes', []),
                 'tags': halakha_data.get('tags', [])
             }
-            
+        except SupabaseException as e:
+            logger.error(f"SupabaseException create_halakha: {e}")
+            return str(e)
         except Exception as e:
             logger.error(f"Exception create_halakha: {e}")
-            return None
+            return str(e)
 
     async def update_halakha(self, halakha_id: int, updates: Dict) -> Dict:
         """Mettre à jour une halakha existante"""
@@ -294,6 +293,7 @@ class SupabaseService:
             print(f"Erreur lors de la suppression de la halakha: {e}")
             return False
 
+    @measure_execution_time("Recherche d'une halakha Supabase")
     async def search_halakhot(self, 
                              search: Optional[str] = None,
                              theme: Optional[str] = None, 
@@ -474,13 +474,6 @@ class SupabaseService:
             return halakhot_response.data
         
         return []
-    
-    # Authentification (si nécessaire)
-    def sign_up(self, email: str, password: str):
-        return self.client.auth.sign_up({"email": email, "password": password})
-    
-    def sign_in(self, email: str, password: str):
-        return self.client.auth.sign_in_with_password({"email": email, "password": password})
 
     async def replace_halakha(self, halakha_id: int, halakha_data: Dict) -> Dict:
         """

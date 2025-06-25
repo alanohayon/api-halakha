@@ -28,7 +28,7 @@ def get_openai_service(settings: Settings = Depends(get_settings)) -> OpenAIServ
     """Dependency pour obtenir le service OpenAI"""
     return OpenAIService(settings)
 
-@router.post("/halakhot", response_model=HalakhaProcessResponse)
+@router.post("/", response_model=HalakhaProcessResponse)
 async def process_single_halakha(
     *,
     supabase: Client = Depends(get_supabase),
@@ -207,6 +207,34 @@ async def process_batch_halakhot(
         raise HTTPException(
             status_code=500,
             detail=f"Impossible de démarrer le traitement en lot: {str(e)}"
+        )
+        
+@router.post("/process/post")
+async def process_halakha_post(
+    halakha_content: str,
+    add_day: int = 0,
+    settings: Settings = Depends(get_settings)
+):
+    """Traiter une halakha et créer une page Notion"""
+    
+    processing_service = ProcessingService(supabase_client=None, settings=settings)
+    
+    try:
+        # Utiliser le service de traitement pour le processus complet
+        notion_page_url = await processing_service.process_halakha_for_notion(
+            halakha_content=halakha_content,
+            add_day_for_notion=add_day
+        )
+        
+        return {
+            "notion_page_url": notion_page_url,
+            "status": "success"
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur lors du traitement de la halakha: {str(e)}"
         )
 
 @router.get("/jobs/{job_id}")

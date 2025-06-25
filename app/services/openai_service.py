@@ -3,6 +3,8 @@ import json
 import logging
 from openai import OpenAI, OpenAIError, APITimeoutError, RateLimitError, APIConnectionError
 from app.core.config import Settings
+from app.utils.performance import measure_execution_time, measure_with_metadata
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -31,7 +33,7 @@ class OpenAIService:
         
         """ Le _ au début est une convention en Python pour dire que c'est une méthode "privée", destinée à être utilisée uniquement à l'intérieur de cette classe (HalakhaRepository)."""
         
-        logger.info(f"🤖 OpenAI: Création d'un Thread et Run ...")
+        logger.info(f" 🤖 OpenAI: Création d'un Thread et Run ...")
     
         try:
             # thread = session (oblig) persistante de la conversation
@@ -44,7 +46,7 @@ class OpenAIService:
                 }
             )
 
-            logger.info(f"🤖 OpenAI: Run d'un nouveau message envoyé à l'assistant {asst} ...")
+            logger.info(f" 🤖 OpenAI: Run d'un nouveau message envoyé à l'assistant {asst} ...")
             
             return thread_run
             
@@ -77,7 +79,7 @@ class OpenAIService:
         except Exception as e:
             logger.error(f"Erreur lors de la suppression du thread : {e}")
 
-    def _wait_on_run(self, run, timeout: int = 60, poll_interval: float = 2.0):
+    def _wait_on_run(self, run, timeout: int = 90, poll_interval: float = 4.0):
         """
         Poll le statut du run toutes les 2s, timeout à 20s, annule si trop long.
         Retourne l'objet run final.
@@ -88,7 +90,7 @@ class OpenAIService:
         try:
             while True:
                 run = self.client.beta.threads.runs.retrieve(thread_id=run.thread_id, run_id=run.id)
-                logger.info(f"🤖 Statut du Run {run.id}: {run.status}")
+                logger.info(f" 🤖 Statut du Run {run.id}: {run.status}")
                 
                 # Si le run est complété ou arrêté 
                 if run.status in ["completed", "failed", "cancelled", "expired"]:
@@ -97,13 +99,13 @@ class OpenAIService:
                 
                 # Si le run est complété ou arreté 
                 if run.status == "requires_action":
-                    logger.info("🔧 Action requise détectée, traitement des outils...")
+                    logger.info(" 🔧 Action requise détectée, traitement des outils...")
                     run = self._submit_tool_outputs_if_required(run)
                     # Continuer le polling après soumission des outils
                     continue
                     
                 if time.time() - start > timeout:
-                    logger.warning(f"❌ ⏱️ Timeout de {timeout}s dépassé, annulation du run...")
+                    logger.warning(f" ❌ ⏱️ Timeout de {timeout}s dépassé, annulation du run...")
                     self._cancel_run(run.thread_id, run.id)
                     # On récupère le statut final après annulation
                     run = self.client.beta.threads.runs.retrieve(thread_id=run.thread_id, run_id=run.id)
@@ -115,7 +117,7 @@ class OpenAIService:
         
     def _submit_tool_outputs(self, run, tool_outputs: list):
         try:
-            logger.info(f"🔧 Soumission des sorties d'outils pour le run {run.id}")
+            logger.info(f" 🔧 Soumission des sorties d'outils pour le run {run.id}")
             formatted_outputs = [
                 {
                     "tool_call_id": tool["tool_call_id"],
@@ -128,7 +130,7 @@ class OpenAIService:
                 run_id=run.id,
                 tool_outputs=formatted_outputs
             )
-            logger.info("✅ Sorties d'outils soumises avec succès")
+            logger.info(" ✅ Sorties d'outils soumises avec succès")
             return self._wait_on_run(run)
             
         except OpenAIError as e:
@@ -157,7 +159,7 @@ class OpenAIService:
             return self._submit_tool_outputs(run, outputs)
         return run
 
-    def _get_assistant_response(self, str, run) -> str:
+    def _get_assistant_response(self, run) -> str:
         """
         Récupère la réponse du run si completed, sinon gère les erreurs.
         """
@@ -184,13 +186,14 @@ class OpenAIService:
         try:
             run_thread = self._create_thread_and_run(input_msg, asst)
             run = self._wait_on_run(run_thread)
-            response = self._get_assistant_response(run_thread.thread_id, run)
+            response = self._get_assistant_response(run)
             self._delete_thread(run_thread.thread_id)
             return response
         except Exception as e:
             logger.error(e)
             raise
         
+    @measure_execution_time("Traitement OpenAI halakha")
     def process_queries_halakha(self, halakha_content: str) -> dict:
         """
         Orchestre les appels à OpenAI pour traiter une halakha.
@@ -212,6 +215,7 @@ class OpenAIService:
             logger.error(f"Erreur lors du traitement de la halakha par OpenAI : {e}")
             raise
 
+    @measure_execution_time("Traitement OpenAI post_legend")
     def process__queries_post_legent(self, halakha_content: str, answer: str):
         # 2. Générer le texte pour le post
         logger.info("Génération du texte du post Instagram...")

@@ -3,6 +3,7 @@
     "difficulty_level": 3,
     "question": "Doit-on vraiment boire du vin à Pourim jusqu'à être pompette ?",
     "answer": "Le Choulhan Aroukh OH 695-2 indique qu'un homme doit boire du vin à Pourim jusqu'à ne pas distinguer entre \"maudit soit Aman et béni soit Mordekhaï\". Cependant, le Rama précise que pour certains, il suffit de boire un peu plus que d'habitude jusqu'à s'endormir. En pratique, tout dépend de la tolérance de chacun : si on peut boire sans tomber dans des comportements indécents et rester capable de prier correctement, on doit le faire. Autrement, on boira selon son seuil de tolérance (Or létsion t4 p343). Pour ceux qui ne supportent pas le vin, il est suffisant de boire plus que d'habitude, comme le faisait le Rav Ovadia Yossef, qui buvait juste assez pour s'endormir légèrement et consacrait le reste de sa journée à l'étude de la Torah.",
+    "content": "content : du vin à Pourim jusqu'à ne pas distinguer entre \"maudit soit Aman et béni soit Mordekhaï\". Cependant, le Rama précise que pour certains, il suffit de boire un peu plus que d'habitude jusqu'à s'endormir. En pratique, tout dépend de la tolérance de chacun : si on peut boire sans tomber dans des comportements indécents et rester capable de prier correctement, on doit le faire. Autrement, on boira selon son seuil de tolérance (Or létsion t4 p343). Pour ceux qui ne supportent pas le vin, il est suffisant de boire plus que d'habitude, comme le faisait le Rav Ovadia Yossef, qui buvait juste assez pour s'endormir légèrement et consacrait le reste de sa journée à l'étude de la Torah.",
     "sources": [
       {
         "name": "Choulhan Aroukh OH",
@@ -39,5 +40,7 @@
       "Pourim",
       "vin",
       "ivresse"
-    ]
+    ],
+    "text_post": "blabla post",
+    "legend": "blabla legend 💿"
   }
