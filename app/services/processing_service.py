@@ -22,6 +22,18 @@ class ProcessingService:
             # 1. Traitement par OpenAI
             logger.info("Étape 1/3 : Traitement du contenu par OpenAI...")
             processed_data = self.openai_service.process_queries_halakha(halakha_content)
+            # Étape 2: Générer le contenu pour le post et la légende
+            logger.info("Génération du contenu pour le post...")
+            text_post, legend = self.openai_service.process__queries_post_legent(
+                processed_data["legend"], 
+                processed_data["answer"]
+            )
+            # Combiner toutes les données
+            complete_data = {
+                **processed_data,
+                "text_post": text_post,
+                "legend": legend
+            }
             logger.info("✅ Données traitées par OpenAI.")
 
             # 2. Sauvegarde dans Supabase
@@ -32,7 +44,7 @@ class ProcessingService:
             # 3. Création de la page sur Notion
             logger.info("Étape 3/3 : Création de la page sur Notion...")
             notion_page = self.notion_service.create_post_page(
-                processed_data,
+                complete_data,
                 add_day=add_day_for_notion,
             )
             logger.info(f"✅ Page Notion créée avec succès.")
@@ -47,12 +59,9 @@ class ProcessingService:
         try:
             from ..utils.json_loader import load_halakha_by_index
             halakha_data = await load_halakha_by_index(json_index)
-            # Création dans Supabase
-            created_halakha = await self.supabase_service.create_halakha(halakha_data)
-            # Traitement OpenAI (optionnel selon logique)
-            # Publication Notion
-            await self._publish_to_notion(created_halakha['id'], schedule_days)
-            return {"halakha_id": created_halakha['id'], "status": "completed"}
+            # Appel direct à process_and_publish_halakha avec halakha_data comme contenu
+            notion_url = await self.process_and_publish_halakha(halakha_content=halakha_data, add_day_for_notion=schedule_days)
+            return {"notion_page_url": notion_url, "status": "completed"}
         except Exception as e:
             logger.error("Processing failed", error=str(e), json_index=json_index)
             raise
