@@ -22,23 +22,23 @@ class ProcessingService:
             # 1. Traitement par OpenAI
             logger.info("Étape 1/3 : Traitement du contenu par OpenAI...")
             processed_data = self.openai_service.process_queries_halakha(halakha_content)
-            # Étape 2: Générer le contenu pour le post et la légende
             logger.info("Génération du contenu pour le post...")
             text_post, legend = self.openai_service.process__queries_post_legent(
-                processed_data["legend"], 
+                halakha_content, 
                 processed_data["answer"]
             )
             # Combiner toutes les données
             complete_data = {
                 **processed_data,
                 "text_post": text_post,
-                "legend": legend
+                "legend": legend,
+                "content": halakha_content  # Assure que 'content' est le texte initial
             }
             logger.info("✅ Données traitées par OpenAI.")
 
             # 2. Sauvegarde dans Supabase
             logger.info("Étape 2/3 : Sauvegarde des données dans Supabase...")
-            await self.supabase_service.create_halakha(processed_data)
+            await self.supabase_service.create_halakha(complete_data)
             logger.info("✅ Données sauvegardées avec succès dans Supabase.")
 
             # 3. Création de la page sur Notion
