@@ -1,7 +1,11 @@
 import logging
+import os
+import boto3
+from botocore.exceptions import ClientError
 from supabase import Client, SupabaseException
 from typing import List, Dict, Optional
 from app.utils.performance import measure_execution_time
+from app.core.config import Settings
 
 
 logger = logging.getLogger(__name__)
@@ -530,3 +534,119 @@ class SupabaseService:
         except Exception as e:
             print(f"Erreur lors de la mise à jour partielle de la halakha: {e}")
             raise e
+        
+    async def upload_image(self, image_path: str, bucket: str = "notion-images") -> Optional[str]:
+        """
+        Upload une image vers Supabase Storage en utilisant l'interface S3 et retourne l'URL publique
+        
+        Args:
+            image_path: Chemin vers le fichier image
+            bucket: Nom du bucket Supabase (par défaut "notion-images")
+            
+        Returns:
+            URL publique de l'image uploadée ou None en cas d'erreur
+        """
+        try:
+            # Charger la configuration
+            from app.core.config import get_settings
+            settings = get_settings()
+            
+    
+            
+            file_name = os.path.basename(image_path)
+            
+            # Configurer le client S3 pour Supabase Storage
+            s3_client = boto3.client(
+                's3',
+                endpoint_url="https://uiuormkgtawyflcaqhgl.supabase.co/storage/v1/s3",
+                region_name="eu-west-3",
+                aws_access_key_id="695ba2b1985bd84b434a150ea111f910",
+                aws_secret_access_key=settings.supabase_service_key,  # Utiliser la service key comme secret
+            )
+            
+            # Upload le fichier
+            with open(image_path, "rb") as f:
+                s3_client.upload_fileobj(
+                    f,
+                    bucket,
+                    file_name,
+                    ExtraArgs={
+                        'ContentType': self._get_content_type(file_name),
+                        'CacheControl': 'max-age=3600'
+                    }
+                )
+            
+            # Construire l'URL publique
+            public_url = f"{settings.endpoint_s3}/{bucket}/{file_name}"
+            logger.info(f"Image uploadée avec succès: {public_url}")
+            print(f"URL publique: {public_url}")
+            
+            return public_url
+            
+        except ClientError as e:
+            logger.error(f"Erreur S3 lors de l'upload de l'image: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"Erreur lors de l'upload de l'image: {e}")
+            return None
+    
+    def _get_content_type(self, filename: str) -> str:
+        """Détermine le type MIME basé sur l'extension du fichier"""
+        extension = filename.lower().split('.')[-1]
+        content_types = {
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'png': 'image/png',
+            'gif': 'image/gif',
+            'webp': 'image/webp',
+            'svg': 'image/svg+xml'
+        }
+        return content_types.get(extension, 'image/jpeg')
+    
+    async def uploa_img_to_supabase(self, image_path: str, bucket: str = "notion-images") -> Optional[str]:
+        """
+        Upload une image vers Supabase Storage et retourne l'URL publique
+        
+        Args:
+            image_path: Chemin vers le fichier image
+            bucket: Nom du bucket Supabase (par défaut "notion-images")
+            
+        Returns:
+            URL publique de l'image uploadée ou None en cas d'erreur
+        """
+        try:
+            # Utiliser la service key pour les permissions d'admin
+            from supabase import create_client
+            from app.core.config import get_settings
+            settings = get_settings()
+            
+            # Créer un client avec la service key pour l'upload
+            admin_client = create_client(settings.supabase_url, settings.supabase_service_key)
+            
+            file_name = os.path.basename(image_path)
+            print(f"📤 Upload du fichier: {file_name}")
+            
+            with open(image_path, "rb") as f:
+                response = admin_client.storage.from_(bucket).upload(
+                    file=f,
+                    path=file_name,  # Utiliser juste le nom du fichier, pas le chemin complet
+                    file_options={"cache-control": "3600", "upsert": "false"}
+                )
+            
+            print("Response upload:", response)
+            
+            if hasattr(response, 'error') and response.error:
+                logger.error(f"Erreur lors de l'upload: {response.error}")
+                return None
+            
+            # Générer l'URL publique
+            public_url = admin_client.storage.from_(bucket).get_public_url(file_name)
+            logger.info(f"Image uploadée avec succès: {public_url}")
+            print(f"✅ URL publique: {public_url}")
+            
+            return public_url
+            
+        except Exception as e:
+            logger.error(f"Erreur lors de l'upload: {e}")
+            print(f"❌ Erreur: {e}")
+            return None

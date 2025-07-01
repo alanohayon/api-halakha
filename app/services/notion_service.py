@@ -4,6 +4,9 @@ from notion_client import Client, APIResponseError
 from typing import List, Dict, Any
 from app.core.config import Settings
 from app.utils.performance import measure_execution_time, measure_with_metadata
+import os
+from app.services.supabase_service import SupabaseService
+from app.utils.image_utils import get_latest_image_path
 
 
 # Configure logging
@@ -156,14 +159,12 @@ class NotionService:
                     logger.warning(" ⚠️ Content du text trop long, text raccourci ! ")
                 
                 properties[key] = {"rich_text": [{"text": {"content": content}}]}
-
         # Champ Image (si une URL est fournie)
         if image_url:
             logger.info(f"Ajout de l'image depuis l'URL: {image_url}")
             properties["Image"] = {
                 "files": [{"name": "image_dalle", "external": {"url": image_url}}]
             }
-
         # Champ Date
         date_value = datetime.now() + timedelta(days=add_day)
         properties["date_post"] = {"date": {"start": date_value.isoformat()}}
@@ -175,18 +176,26 @@ class NotionService:
         return properties
     
     @measure_execution_time("Création d'une Halakha Notion")
-    def create_halakha_page(self, processed_data: dict, add_day: int, image_url: str = None, status: str = NotionStatus.INPROGRESS) -> dict:
+    def create_halakha_page(self, processed_data: dict, add_day: int, status: str = NotionStatus.INPROGRESS) -> dict:
         """
         Crée une nouvelle page dans la base de données Notion des posts.
         """
         logger.info(f"Création d'une nouvelle page Notion dans la base de données: {self.settings.notion_database_id_post_halakha}")
         try:
-            properties = self._build_page_properties(processed_data, add_day, image_url, status)
+            # 1. Trouver la dernière image
+            # latest_image_path = get_latest_image_path()
+            # print("lcreate halakha page latest_image_path", latest_image_path)
+            # if latest_image_path:
+            #     # 2. Uploader l'image sur Supabase et obtenir l'URL publique
+            #     image_url = SupabaseService.upload_image(latest_image_path)
             
+            # 3. Construire les propriétés de la page Notion (avec l'URL de l'image = Nonz)
+            properties = self._build_page_properties(processed_data, add_day, None, status)
+            # 4. Créer la page Notion
             response = self.notion.pages.create(
-                parent={"database_id": self.settings.notion_database_id_post_halakha},
-                properties=properties
-            )
+                    parent={"database_id": self.settings.notion_database_id_post_halakha},
+                    properties=properties
+                )
             logger.info(f"Page Notion créée avec succès. ID: {response['id']}")
             return response
         except APIResponseError as e:

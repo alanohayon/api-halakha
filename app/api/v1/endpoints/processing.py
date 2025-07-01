@@ -1,15 +1,17 @@
 import datetime
 import logging
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
+from typing import List, Dict, Any, Optional
 import uuid
 from supabase import Client
+import asyncio
 
 from app.core.config import Settings, get_settings
 from app.core.database import get_db, get_supabase
 from app.services.processing_service import ProcessingService
 from app.services.openai_service import OpenAIService
+from app.services.notion_service import NotionService
+from app.services.supabase_service import SupabaseService
 from app.schemas.halakha import (
     HalakhaTextInput, 
     HalakhaProcessResponse,
@@ -17,6 +19,9 @@ from app.schemas.halakha import (
     ProcessHalakhaResponse,
     ProcessCompleteHalakhaResponse
 )
+from app.schemas.openai import OpenAIRequest
+from app.schemas.notion import NotionPageRequest
+from app.utils.image_utils import get_latest_image_path
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -358,4 +363,100 @@ async def _process_batch_background(
     job_status_store[job_id]["completed_at"] = "2024-01-01T00:00:00Z"  # En production, utiliser datetime.utcnow()
     
     logger.info(f"Traitement job {job_id} terminé: {processed}/{len(halakhot_inputs)} réussies, {len(errors)} erreurs")
+
+@router.post("/upload-latest-image")
+async def upload_latest_image(
+    supabase_client=Depends(get_supabase)
+) -> Dict[str, Any]:
+    """
+    Upload la dernière image du dossier Downloads vers Supabase Storage
+    et retourne l'URL publique
+    """
+    try:
+        logger.info("🖼️ Recherche de la dernière image dans Downloads...")
+        
+        # Récupérer la dernière image
+        latest_image_path = get_latest_image_path()
+        
+        if not latest_image_path:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Aucune image trouvée dans le dossier Downloads"
+            )
+        
+        logger.info(f"📁 Image trouvée: {latest_image_path}")
+        
+        # Upload vers Supabase
+        supabase_service = SupabaseService(supabase_client)
+        image_url = await supabase_service.uploa_img_to_supabase(latest_image_path)
+        
+        if not image_url:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Échec de l'upload de l'image"
+            )
+        
+        logger.info(f"✅ Image uploadée avec succès: {image_url}")
+        
+        return {
+            "success": True,
+            "message": "Image uploadée avec succès",
+            "data": {
+                "image_url": image_url,
+                "file_name": latest_image_path.split("/")[-1],
+                "bucket": "notion-images"
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Erreur lors de l'upload de l'image: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur interne: {str(e)}"
+        )
+
+@router.get("/latest-image-info")
+async def get_latest_image_info() -> Dict[str, Any]:
+    """
+    Récupère les informations sur la dernière image dans Downloads
+    sans l'uploader
+    """
+    try:
+        latest_image_path = get_latest_image_path()
+        
+        if not latest_image_path:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Aucune image trouvée dans le dossier Downloads"
+            )
+        
+        import os
+        from datetime import datetime
+        
+        file_stats = os.stat(latest_image_path)
+        file_size = file_stats.st_size
+        modified_time = datetime.fromtimestamp(file_stats.st_mtime)
+        
+        return {
+            "success": True,
+            "data": {
+                "file_path": latest_image_path,
+                "file_name": os.path.basename(latest_image_path),
+                "file_size_bytes": file_size,
+                "file_size_mb": round(file_size / (1024 * 1024), 2),
+                "modified_time": modified_time.isoformat(),
+                "ready_for_upload": True
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Erreur lors de la récupération des infos de l'image: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur interne: {str(e)}"
+        )
 

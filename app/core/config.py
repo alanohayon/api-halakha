@@ -41,6 +41,24 @@ class Settings(BaseSettings):
     )
     
     # ============================================================================
+    # S3 STORAGE CONFIGURATION (Supabase Storage)
+    # ============================================================================
+    endpoint_s3: Optional[str] = Field(
+        default=None, 
+        description="Endpoint S3 pour Supabase Storage"
+    )
+    region_s3: Optional[str] = Field(
+        default=None, 
+        description="Région S3 pour Supabase Storage"
+    )
+    key_store_image: Optional[str] = Field(
+        default=None, 
+        description="Clé d'accès S3 pour le stockage d'images"
+    )
+   
+    
+    
+    # ============================================================================
     # OPENAI CONFIGURATION
     # ============================================================================
     openai_api_key: Optional[str] = Field(

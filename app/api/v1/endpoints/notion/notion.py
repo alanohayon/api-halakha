@@ -66,7 +66,6 @@ async def sync_halakhot_to_notion(
 async def create_notion_post(
     schema_halakha_complet: ProcessCompleteHalakhaResponse,
     add_day: int = 0,
-    image_url: str = None,
     settings: Settings = Depends(get_settings_dependency)
 ):
     """Créer une page post Notion avec données traitées"""
@@ -77,7 +76,6 @@ async def create_notion_post(
         result = service.create_halakha_page(
             processed_data=halakha_complet_dict,
             add_day=add_day,
-            image_url=image_url
         )
         return {"page": result, "status": "success"}
     except Exception as e:
