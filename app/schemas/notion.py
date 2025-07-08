@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import Optional, Dict, Any, List
 from pydantic import BaseModel, Field
 
@@ -14,6 +15,11 @@ class NotionPageResponse(BaseModel):
     title: str
     created_time: str
     last_edited_time: str
+    
+class NotionStatus(str, Enum):
+    TODO = "Pas commencé"
+    INPROGRESS = "En cours"
+    COMPLETE = "Terminé"
 
 
 class NotionDatabaseRequest(BaseModel):

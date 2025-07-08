@@ -1,8 +1,9 @@
 import time
 import json
 import logging
+import asyncio
 from openai import OpenAI, OpenAIError, APITimeoutError, RateLimitError, APIConnectionError
-from app.core.config import Settings
+from app.core.config import get_settings
 from app.utils.performance import measure_execution_time, measure_with_metadata
 
 
@@ -11,7 +12,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class OpenAIService:
-    def __init__(self, settings: Settings):
+    def __init__(self):
+        settings = get_settings()
         if not settings.openai_api_key:
             raise ValueError("La clé API OpenAI n'est pas configurée.")
         
@@ -29,7 +31,7 @@ class OpenAIService:
             logger.error("Erreur inattendue lors de l'initialisation du client", error=str(e))
             raise
 
-    def _create_thread_and_run(self, input_msg: str, asst):
+    async def _create_thread_and_run(self, input_msg: str, asst):
         
         """ Le _ au début est une convention en Python pour dire que c'est une méthode "privée", destinée à être utilisée uniquement à l'intérieur de cette classe (HalakhaRepository)."""
         
@@ -62,7 +64,7 @@ class OpenAIService:
         except Exception as e:
             raise RuntimeError(f"Erreur inattendue lors de la création du thread : {e}")
 
-    def _cancel_run(self, thread_id: str, run_id: str):
+    async def _cancel_run(self, thread_id: str, run_id: str):
         """Annule un run en cours"""
         try:
             self.client.beta.threads.runs.cancel(thread_id=thread_id, run_id=run_id)
@@ -70,7 +72,7 @@ class OpenAIService:
         except Exception as e:
             logger.error(f"Erreur lors de l'annulation du run : {e}")
             
-    def _delete_thread(self, thread_id: str):
+    async def _delete_thread(self, thread_id: str):
         """Supprime un thread en cours"""
         try:
             
@@ -79,9 +81,9 @@ class OpenAIService:
         except Exception as e:
             logger.error(f"Erreur lors de la suppression du thread : {e}")
 
-    def _wait_on_run(self, run, timeout: int = 90, poll_interval: float = 4.0):
+    async def _wait_on_run(self, run, timeout: int = 3600, poll_interval: float = 4.0):
         """
-        Poll le statut du run toutes les 2s, timeout à 20s, annule si trop long.
+        Poll le statut du run toutes les 4s, timeout à 1h pour les traitements longs.
         Retourne l'objet run final.
         """
         
@@ -100,22 +102,22 @@ class OpenAIService:
                 # Si le run est complété ou arreté 
                 if run.status == "requires_action":
                     logger.info(" 🔧 Action requise détectée, traitement des outils...")
-                    run = self._submit_tool_outputs_if_required(run)
+                    run = await self._submit_tool_outputs_if_required(run)
                     # Continuer le polling après soumission des outils
                     continue
                     
                 if time.time() - start > timeout:
                     logger.warning(f" ❌ ⏱️ Timeout de {timeout}s dépassé, annulation du run...")
-                    self._cancel_run(run.thread_id, run.id)
+                    await self._cancel_run(run.thread_id, run.id)
                     # On récupère le statut final après annulation
                     run = self.client.beta.threads.runs.retrieve(thread_id=run.thread_id, run_id=run.id)
                     return run
-                time.sleep(poll_interval)
+                await asyncio.sleep(poll_interval)
         except Exception as e:
             logger.error(f"Erreur lors du polling du run : {e}")
             raise
         
-    def _submit_tool_outputs(self, run, tool_outputs: list):
+    async def _submit_tool_outputs(self, run, tool_outputs: list):
         try:
             logger.info(f" 🔧 Soumission des sorties d'outils pour le run {run.id}")
             formatted_outputs = [
@@ -131,7 +133,7 @@ class OpenAIService:
                 tool_outputs=formatted_outputs
             )
             logger.info(" ✅ Sorties d'outils soumises avec succès")
-            return self._wait_on_run(run)
+            return await self._wait_on_run(run)
             
         except OpenAIError as e:
             logger.error(f"Erreur OpenAI lors de la soumission des sorties : {e}")
@@ -140,7 +142,7 @@ class OpenAIService:
             logger.error(f"Erreur inattendue lors de la soumission : {e}")
             raise
 
-    def _submit_tool_outputs_if_required(self, run):
+    async def _submit_tool_outputs_if_required(self, run):
         if run.status == "requires_action" and run.required_action and run.required_action.type == "submit_tool_outputs":
             outputs = []
             for tool_call in run.required_action.submit_tool_outputs.tool_calls:
@@ -156,10 +158,10 @@ class OpenAIService:
                     "output": result
                 })
 
-            return self._submit_tool_outputs(run, outputs)
+            return await self._submit_tool_outputs(run, outputs)
         return run
 
-    def _get_assistant_response(self, run) -> str:
+    async def _get_assistant_response(self, run) -> str:
         """
         Récupère la réponse du run si completed, sinon gère les erreurs.
         """
@@ -182,19 +184,19 @@ class OpenAIService:
             logger.error(f"Le Run s'est terminé avec un statut inattendu : {run.status}")
             raise RuntimeError(f"Le Run s'est terminé avec un statut inattendu : {run.status}")
 
-    def _query_assistant(self, input_msg: str, asst) -> str:
+    async def _query_assistant(self, input_msg: str, asst) -> str:
         try:
-            run_thread = self._create_thread_and_run(input_msg, asst)
-            run = self._wait_on_run(run_thread)
-            response = self._get_assistant_response(run)
-            self._delete_thread(run_thread.thread_id)
+            run_thread = await self._create_thread_and_run(input_msg, asst)
+            run = await self._wait_on_run(run_thread)
+            response = await self._get_assistant_response(run)
+            await self._delete_thread(run_thread.thread_id)
             return response
         except Exception as e:
             logger.error(e)
             raise
         
     @measure_execution_time("Traitement OpenAI halakha")
-    def process_queries_halakha(self, halakha_content: str) -> dict:
+    async def queries_halakha(self, halakha_content: str) -> dict:
         """
         Orchestre les appels à OpenAI pour traiter une halakha.
         """
@@ -202,7 +204,7 @@ class OpenAIService:
         try:
             # 1. Extraire les données structurées
             logger.info("Extraction des données structurées (question, réponse, etc.)...")
-            json_str_response = self._query_assistant(halakha_content, self.settings.asst_halakha)
+            json_str_response = await self._query_assistant(halakha_content, self.settings.asst_halakha)
             processed_data = json.loads(json_str_response)
             
             
@@ -216,17 +218,27 @@ class OpenAIService:
             raise
 
     @measure_execution_time("Traitement OpenAI post_legend")
-    def process__queries_post_legent(self, halakha_content: str, answer: str):
-        # 2. Générer le texte pour le post
-        logger.info("Génération du texte du post Instagram...")
-        text_post = self._query_assistant(answer, self.settings.asst_insta_post)
-        
-        # 3. Générer la légende
-        logger.info("Génération de la légende du post...")
-        legend = self._query_assistant(halakha_content, self.settings.asst_legend_post)
-        
-        return text_post, legend
-        
+    async def queries_post_legende(self, halakha_content: str, answer: str) -> dict:
+        """
+        Génère le contenu Instagram (post et légende).
+        Retourne un dictionnaire avec post_text et legende_text.
+        """
+        try:
+            # 2. Générer le texte pour le post
+            logger.info("Génération du texte du post Instagram...")
+            text_post = await self._query_assistant(answer, self.settings.asst_insta_post)
+            
+            # 3. Générer la légende
+            logger.info("Génération de la légende du post...")
+            legend = await self._query_assistant(halakha_content, self.settings.asst_legend_post)
+            
+            return {
+                "post_text": text_post.strip(),
+                "legende_text": legend.strip()  # ✅ Changé "caption" en "legende_text"
+            }
+        except Exception as e:
+            logger.error(f"Erreur lors de la génération du contenu Instagram : {e}")
+            raise
 
     # def generate_image_url(self, prompt: str) -> str:
     #     """

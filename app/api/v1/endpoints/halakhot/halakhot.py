@@ -4,21 +4,21 @@ from typing import List, Optional
 
 from app.core.database import get_supabase
 from app.services.supabase_service import SupabaseService
-from app.schemas.halakha import HalakhaCompleteInput
+from app.schemas.halakha import HalakhaAnalyseOpenAi
 
 router = APIRouter()
 
 # CREATE - Créer une nouvelle halakha
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_halakha(
-    halakha_data: HalakhaCompleteInput,
+    halakha_data: HalakhaAnalyseOpenAi,
     supabase: Client = Depends(get_supabase)
 ):
     """Créer une nouvelle halakha avec toutes ses données structurées"""
-    service = SupabaseService(supabase)
+    service_supabase = SupabaseService(supabase)
     # Convertir le modèle Pydantic en dictionnaire pour le service
     halakha_dict = halakha_data.model_dump()
-    return await service.create_halakha(halakha_dict)
+    return await service_supabase.create_halakha(halakha_dict)
 
 # READ - Lister toutes les halakhot avec pagination et recherche
 @router.get("/", response_model=List[dict])
@@ -74,14 +74,14 @@ async def get_halakha(
 @router.put("/{halakha_id}")
 async def replace_halakha(
     halakha_id: int,
-    halakha_data: HalakhaCompleteInput,
+    halakha_data: HalakhaAnalyseOpenAi,
     supabase: Client = Depends(get_supabase)
 ):
     """Remplacer complètement une halakha existante"""
-    service = SupabaseService(supabase)
+    service_supabase = SupabaseService(supabase)
     
     # Vérifier que la halakha existe
-    existing_halakha = await service.get_halakha_by_id(halakha_id)
+    existing_halakha = await service_supabase.get_halakha_by_id(halakha_id)
     if not existing_halakha:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -90,7 +90,7 @@ async def replace_halakha(
     
     # Remplacer complètement
     halakha_dict = halakha_data.model_dump()
-    updated_halakha = await service.replace_halakha(halakha_id, halakha_dict)
+    updated_halakha = await service_supabase.replace_halakha(halakha_id, halakha_dict)
     
     if not updated_halakha:
         raise HTTPException(

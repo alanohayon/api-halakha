@@ -18,7 +18,7 @@ class TestProcessingRoutes:
             "tags": ["vélo", "shabbat", "interdit"]
         }
         
-        with patch('app.services.openai_service.OpenAIService.process_queries_halakha') as mock_process:
+        with patch('app.services.openai_service.OpenAIService.queries_halakha') as mock_process:
             mock_process.return_value = mock_response
             
             response = await client.post(
@@ -45,12 +45,12 @@ class TestProcessingRoutes:
             "sources": ["Shulchan Aroukh", "Mishna Brura"]
         }
         
-        # Mock de la réponse process__queries_post_legent
+        # Mock de la réponse queries_post_legende
         mock_text_post = "🚲 #Shabbat Question importante sur le vélo..."
         mock_legend = "Une belle réflexion sur les lois du Shabbat..."
         
-        with patch('app.services.openai_service.OpenAIService.process_queries_halakha') as mock_process, \
-             patch('app.services.openai_service.OpenAIService.process__queries_post_legent') as mock_post:
+        with patch('app.services.openai_service.OpenAIService.queries_halakha') as mock_process, \
+             patch('app.services.openai_service.OpenAIService.queries_post_legende') as mock_post:
             
             mock_process.return_value = mock_halakha_response
             mock_post.return_value = (mock_text_post, mock_legend)
@@ -80,7 +80,7 @@ class TestProcessingRoutes:
     async def test_analyze_halakha_route_error(self, client):
         """Test de la route d'analyse avec erreur"""
         
-        with patch('app.services.openai_service.OpenAIService.process_queries_halakha') as mock_process:
+        with patch('app.services.openai_service.OpenAIService.queries_halakha') as mock_process:
             mock_process.side_effect = Exception("OpenAI API Error")
             
             response = await client.post(
@@ -95,7 +95,7 @@ class TestProcessingRoutes:
     async def test_complete_halakha_route_error(self, client):
         """Test de la route de traitement complet avec erreur"""
         
-        with patch('app.services.openai_service.OpenAIService.process_queries_halakha') as mock_process:
+        with patch('app.services.openai_service.OpenAIService.queries_halakha') as mock_process:
             mock_process.side_effect = Exception("OpenAI API Error")
             
             response = await client.post(

@@ -2,11 +2,12 @@ import logging
 from datetime import datetime, timedelta
 from notion_client import Client, APIResponseError
 from typing import List, Dict, Any
-from app.core.config import Settings
-from app.utils.performance import measure_execution_time, measure_with_metadata
+from app.core.config import get_settings
+from app.core.database import get_supabase
+from app.utils.performance import measure_execution_time
 import os
 from app.services.supabase_service import SupabaseService
-from app.utils.image_utils import get_latest_image_path
+from app.utils.image_utils import get_latest_image_with_clean_name
 
 
 # Configure logging
@@ -20,7 +21,8 @@ class NotionStatus:
     COMPLETE = "Terminé"
 
 class NotionService:
-    def __init__(self, settings: Settings):
+    def __init__(self):
+        settings = get_settings()
         if not settings.notion_api_token or not settings.notion_database_id_post_halakha:
             raise ValueError("Les configurations Notion (token et ID de base de données) sont requises.")
         
@@ -128,7 +130,7 @@ class NotionService:
             logger.error(f"Erreur lors de la synchronisation des halakhot : {e}")
             raise RuntimeError(f"Erreur lors de la synchronisation des halakhot: {e}")
 
-    def _build_page_properties(self, processed_data: dict, add_day: int, image_url: str = None, status: str = NotionStatus.INPROGRESS) -> dict:
+    async def _build_page_properties(self, processed_data: dict, add_day: int, image_url: str = None, status: str = NotionStatus.INPROGRESS) -> dict:
         """
         Crée une nouvelle page dans la base de données Notion
         
@@ -137,8 +139,9 @@ class NotionService:
             schedule_days: Nombre de jours à ajouter à la date de publication
             
         Returns:
-            Réponse de l'API Notion
+            Retourne les propriétés de la page Notion
         """
+        
         logger.info("Construction des propriétés de la page Notion...")
         properties = {}
 
@@ -159,12 +162,28 @@ class NotionService:
                     logger.warning(" ⚠️ Content du text trop long, text raccourci ! ")
                 
                 properties[key] = {"rich_text": [{"text": {"content": content}}]}
-        # Champ Image (si une URL est fournie)
+
+        # Ajout de l'image si disponible
+        try:
+            supabase_service = SupabaseService()
+            image_url = await supabase_service.get_last_img_supabase()
+        except Exception as e:
+            logger.error(f"Erreur lors de la récupération de l'image : {e}")
+            image_url = None
+            
         if image_url:
-            logger.info(f"Ajout de l'image depuis l'URL: {image_url}")
-            properties["Image"] = {
-                "files": [{"name": "image_dalle", "external": {"url": image_url}}]
+            properties["image"] = {
+                "files": [
+                    {
+                        "name": "Image",
+                        "type": "external",
+                        "external": {
+                            "url": image_url
+                        }
+                    }
+                ]
             }
+        
         # Champ Date
         date_value = datetime.now() + timedelta(days=add_day)
         properties["date_post"] = {"date": {"start": date_value.isoformat()}}
@@ -174,30 +193,33 @@ class NotionService:
         
         logger.info(" ☑️ 📄 Propriétés de la page construites avec succès.")
         return properties
-    
+        
     @measure_execution_time("Création d'une Halakha Notion")
-    def create_halakha_page(self, processed_data: dict, add_day: int, status: str = NotionStatus.INPROGRESS) -> dict:
+    async def create_halakha_page(self, processed_data: dict, add_day: int, status: str = NotionStatus.INPROGRESS) -> dict:
         """
         Crée une nouvelle page dans la base de données Notion des posts.
-        """
-        logger.info(f"Création d'une nouvelle page Notion dans la base de données: {self.settings.notion_database_id_post_halakha}")
-        try:
-            # 1. Trouver la dernière image
-            # latest_image_path = get_latest_image_path()
-            # print("lcreate halakha page latest_image_path", latest_image_path)
-            # if latest_image_path:
-            #     # 2. Uploader l'image sur Supabase et obtenir l'URL publique
-            #     image_url = SupabaseService.upload_image(latest_image_path)
+        
+        Args:
+            processed_data: Données traitées par OpenAI
+            add_day: Nombre de jours à ajouter à la date de publication
+            status: Statut de la page (par défaut INPROGRESS)
             
-            # 3. Construire les propriétés de la page Notion (avec l'URL de l'image = Nonz)
-            properties = self._build_page_properties(processed_data, add_day, None, status)
-            # 4. Créer la page Notion
+        Returns:
+            dict: Réponse de l'API Notion avec les détails de la page créée
+        """
+        
+        logger.info(f"Création d'une nouvelle page Notion dans la base de données: {self.settings.notion_database_id_post_halakha}")
+
+        properties = await self._build_page_properties(processed_data, add_day, status)
+        
+        try:      
             response = self.notion.pages.create(
-                    parent={"database_id": self.settings.notion_database_id_post_halakha},
-                    properties=properties
-                )
-            logger.info(f"Page Notion créée avec succès. ID: {response['id']}")
+                parent={"database_id": self.settings.notion_database_id_post_halakha},
+                properties=properties
+            )
+            logger.info(f"✅ Page Notion créée avec succès. ID: {response['id']}")
             return response
+            
         except APIResponseError as e:
             logger.error(f"Erreur de l'API Notion lors de la création de la page : {e.code} - {e.body}")
             raise RuntimeError(f"Erreur API Notion: {e.body}")

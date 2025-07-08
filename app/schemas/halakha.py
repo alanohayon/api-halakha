@@ -1,55 +1,64 @@
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
-from datetime import datetime
-from enum import Enum
 from app.schemas.base import BaseResponse
 
-class ProcessingStatus(str, Enum):
-    PENDING = "pending"
-    IN_PROGRESS = "in_progress"
-    COMPLETED = "completed"
-    FAILED = "failed"
 
-class HalakhaTextInput(BaseModel):
+class HalakhaNotionInputBrut(BaseModel):
+    """
+        Schéma pour recevoir le texte complet de la halakha à traiter (avec OpenAI).
+        content: Le texte complet de la halakha à traiter.
+        schedule_days: Nombre de jours à ajouter pour la date de publication sur Notion.
+    """
     content: str = Field(..., min_length=50, description="Le texte complet de la halakha à traiter.")
     schedule_days: int = Field(0, description="Nombre de jours à ajouter pour la date de publication sur Notion.")
 
-class HalakhaProcessResponse(BaseModel):
-    status: str = "success"
-    message: str = "La halakha a été traitée et publiée avec succès."
-    notion_page_url: str 
 
-class HalakhaBase(BaseModel):
-    question: str = Field(..., min_length=1, max_length=500)
-    content: str = Field(..., min_length=1)
-
-class HalakhaCreate(HalakhaBase):
-    pass
-
-
-class HalakhaResponse(HalakhaBase):
+class HalakhaNotionPost(BaseModel):
+    """
+        Schéma de la réponse au client après le traitement de la halakha.
+        status: Le statut du traitement.
+        message: Le message de réponse.
+        notion_page_url: L'URL de la page Notion créée.
+    """
     model_config = ConfigDict(from_attributes=True)
     
-    id: int
-    answer: Optional[str] = None
-    text_post: Optional[str] = None
-    legend: Optional[str] = None
-    status: ProcessingStatus
-    created_at: datetime
-    updated_at: Optional[datetime] = None
-
-class ProcessHalakhaRequest(BaseModel):
+    status: str = "success"
+    message: str = "La halakha a été traitée et publiée avec succès."
+    notion_page_url: str = Field(..., description="L'URL de la page Notion créée.")
+   
+    
+class HalakhaInputBrut(BaseModel):
+    """
+        Schéma pour recevoir le texte complet de la halakha à traiter (avec OpenAI).
+        content: Le texte complet de la halakha à traiter.
+    """
     content: str = Field(..., min_length=50, description="Contenu de la halakha à traiter")
 
 
 class SourceItem(BaseModel):
+    """
+        Schéma pour les sources mentionnées dans la halakha.
+        name: Le nom de la source.
+        page: La page de la source.
+        full_src: Le contenu complet de la source.
+    """
     name: str
     page: Optional[str] = None
     full_src: Optional[str] = None
 
 
-class HalakhaCompleteInput(BaseModel):
-    """Schéma pour recevoir une halakha complète avec toutes ses données"""
+class HalakhaAnalyseOpenAi(BaseResponse):
+    """
+        Schéma pour les données extraites de la halakha avec OpenAI.
+        title: Le titre de la halakha.
+        difficulty_level: Le niveau de difficulté de la halakha.
+        question: La question de la halakha.
+        answer: La réponse de la halakha.
+        content: Le contenu de la halakha.
+        sources: Les sources mentionnées dans la halakha.
+        themes: Les thèmes identifiés dans la halakha.
+        tags: Les tags associés à la halakha.
+    """
     title: str = Field(..., description="Titre de la halakha")
     difficulty_level: Optional[int] = Field(None, description="Niveau de difficulté de la halakha")
     question: str = Field(..., description="Question de la halakha")
@@ -60,27 +69,32 @@ class HalakhaCompleteInput(BaseModel):
     tags: Optional[List[str]] = Field(default_factory=list, description="Tags associés")
     
     
-class ProcessHalakhaResponse(BaseResponse):
-    title: Optional[str] = Field(default=None, description="Titre de la halakha")
+class HalakhaPostLegendeOpenAi(BaseResponse):
+    """
+        Schéma pour les données extraites de la halakha avec OpenAI.
+        title: Le titre de la halakha.
+        difficulty_level: Le niveau de difficulté de la halakha.
+        question: La question de la halakha.
+        answer: La réponse de la halakha.
+        content: Le contenu de la halakha.
+        sources: Les sources mentionnées dans la halakha.
+        themes: Les thèmes identifiés dans la halakha.
+        tags: Les tags associés à la halakha.
+        text_post: Le texte généré pour le post Instagram.
+        legend: La légende générée pour le post.
+    """
+    title: str = Field(..., description="Titre de la halakha")
     difficulty_level: Optional[int] = Field(default=None, description="Niveau de difficulté de la halakha")
     question: str = Field(..., description="Question extraite de la halakha")
     answer: str = Field(..., description="Réponse extraite de la halakha")
     content: str = Field(..., description="Réponse extraite de la halakha")
-    sources: Optional[List[SourceItem]] = Field(default=None, description="Sources mentionnées")    
-    themes: Optional[List[str]] = Field(default=None, description="Thèmes identifiés")
-    tags: Optional[List[str]] = Field(default=None, description="Tags associés")
-
-    
-class ProcessCompleteHalakhaResponse(BaseResponse):
-    title: Optional[str] = Field(default=None, description="Titre de la halakha")
-    difficulty_level: Optional[int] = Field(default=None, description="Niveau de difficulté de la halakha")
-    question: str = Field(..., description="Question extraite de la halakha")
-    answer: str = Field(..., description="Réponse extraite de la halakha")
-    content: str = Field(..., description="Réponse extraite de la halakha")
-    sources: Optional[List[SourceItem]] = Field(default=None, description="Sources mentionnées")    
-    themes: Optional[List[str]] = Field(default=None, description="Thèmes identifiés")
-    tags: Optional[List[str]] = Field(default=None, description="Tags associés")
+    sources: Optional[List[SourceItem]] = Field(default_factory=list, description="Sources mentionnées")
+    themes: Optional[List[str]] = Field(default_factory=list, description="Thèmes identifiés")
+    tags: Optional[List[str]] = Field(default_factory=list, description="Tags associés")
     text_post: str = Field(..., description="Texte généré pour le post Instagram")
     legend: str = Field(..., description="Légende générée pour le post")
+    
+
+
     
     

@@ -4,17 +4,21 @@ from app.core.config import Settings
 from app.services.openai_service import OpenAIService
 from app.services.notion_service import NotionService
 from app.services.supabase_service import SupabaseService
+from app.core.config import get_settings
+
 from app.utils.performance import measure_execution_time, measure_with_metadata
-from ..schemas.halakha import ProcessingStatus
+from ..schemas.notion import NotionStatus
 
 logger = structlog.get_logger()
 
 class ProcessingService:
-    def __init__(self, supabase_client, settings: Settings):
-        self.supabase_service = SupabaseService(supabase_client)
+    def __init__(self):
+        settings = get_settings()
+            
+        self.supabase_service = SupabaseService()
         self.settings = settings
-        self.openai_service = OpenAIService(settings)
-        self.notion_service = NotionService(settings)
+        self.openai_service = OpenAIService()
+        self.notion_service = NotionService()
 
     @measure_execution_time("process_and_publish_halakha")
     async def process_and_publish_halakha(self, halakha_content: str, add_day_for_notion: int = 0) -> str:
@@ -22,17 +26,17 @@ class ProcessingService:
         try:
             # 1. Traitement par OpenAI
             logger.info("Étape 1/3 : Traitement du contenu par OpenAI...")
-            processed_data = self.openai_service.process_queries_halakha(halakha_content)
+            processed_data = await self.openai_service.queries_halakha(halakha_content)
             logger.info("Génération du contenu pour le post...")
-            text_post, legend = self.openai_service.process__queries_post_legent(
+            post_result = await self.openai_service.queries_post_legende(
                 halakha_content, 
                 processed_data["answer"]
             )
             # Combiner toutes les données
             complete_data = {
                 **processed_data,
-                "text_post": text_post,
-                "legend": legend,
+                "text_post": post_result["post_text"],
+                "legend": post_result["legende_text"],  # ✅ Utilise legende_text
                 "content": halakha_content  # Assure que 'content' est le texte initial
             }
             logger.info("✅ Données traitées par OpenAI.")
@@ -44,7 +48,7 @@ class ProcessingService:
 
             # 3. Création de la page sur Notion
             logger.info("Étape 3/3 : Création de la page sur Notion...")
-            notion_page = self.notion_service.create_halakha_page(
+            notion_page = await self.notion_service.create_halakha_page(
                 complete_data,
                 add_day=add_day_for_notion,
             )
@@ -74,17 +78,25 @@ class ProcessingService:
         if not halakha:
             raise ValueError(f"Halakha {halakha_id} not found")
         # Marquer comme en cours (si méthode update existe)
-        await self.supabase_service.update_halakha_partial(halakha_id, {"status": ProcessingStatus.IN_PROGRESS})
+        await self.supabase_service.update_halakha_partial(halakha_id, {"status": NotionStatus.IN_PROGRESS})
         try:
-            ai_result = await self.openai_service.process_queries_halakha(halakha['content'])
+            # 1. Analyse de la halakha
+            ai_result = await self.openai_service.queries_halakha(halakha['content'])
+            
+            # 2. Génération du contenu Instagram
+            post_result = await self.openai_service.queries_post_legende(
+                halakha['content'], 
+                ai_result["answer"]
+            )
+            
             await self.supabase_service.update_halakha_partial(halakha_id, {
                 "answer": ai_result.get("answer"),
-                "text_post": ai_result.get("text_post"),
-                "legend": ai_result.get("legend"),
-                "status": ProcessingStatus.COMPLETED
+                "text_post": post_result["post_text"],
+                "legend": post_result["legende_text"],  # ✅ Utilise legende_text
+                "status": NotionStatus.COMPLETED
             })
         except Exception as e:
-            await self.supabase_service.update_halakha_partial(halakha_id, {"status": ProcessingStatus.FAILED})
+            await self.supabase_service.update_halakha_partial(halakha_id, {"status": NotionStatus.FAILED})
             raise
 
     @measure_with_metadata(service="processing", operation_type="publication", provider="notion")
@@ -92,15 +104,15 @@ class ProcessingService:
         halakha = await self.supabase_service.get_halakha_by_id(halakha_id)
         if not halakha:
             raise ValueError(f"Halakha {halakha_id} not found")
-        await self.supabase_service.update_halakha_partial(halakha_id, {"status": ProcessingStatus.IN_PROGRESS})
+        await self.supabase_service.update_halakha_partial(halakha_id, {"status": NotionStatus.IN_PROGRESS})
         try:
             await self.notion_service.create_halakha_page(
                 halakha,
                 add_day=schedule_days
             )
-            await self.supabase_service.update_halakha_partial(halakha_id, {"status": ProcessingStatus.COMPLETED})
+            await self.supabase_service.update_halakha_partial(halakha_id, {"status": NotionStatus.COMPLETED})
         except Exception as e:
-            await self.supabase_service.update_halakha_partial(halakha_id, {"status": ProcessingStatus.FAILED})
+            await self.supabase_service.update_halakha_partial(halakha_id, {"status": NotionStatus.FAILED})
             raise
     
     @measure_execution_time("process_halakha_for_notion")
@@ -108,23 +120,23 @@ class ProcessingService:
         logger.info("🚀 Démarrage du processus de traitement complet de la halakha.")
         try:
             # 1. Traitement par OpenAI
-            logger.info("Étape 1/3 : Traitement du contenu par OpenAI...")
-            processed_data = self.openai_service.process_queries_halakha(halakha_content)
+            logger.info("Étape 1/2 : Traitement du contenu par OpenAI...")
+            processed_data = await self.openai_service.queries_halakha(halakha_content)
             logger.info("Génération du contenu pour le post...")
-            text_post, legend = self.openai_service.process__queries_post_legent(halakha_content, processed_data["answer"])
+            post_result = await self.openai_service.queries_post_legende(halakha_content, processed_data["answer"])
             
             # Combiner toutes les données
             complete_data = {
                 **processed_data,
-                "text_post": text_post,
-                "legend": legend,
+                "text_post": post_result["post_text"],
+                "legend": post_result["legende_text"],  # ✅ Utilise legende_text
                 "content": halakha_content  # Assure que 'content' est le texte initial
             }
             logger.info("✅ Données traitées par OpenAI.")
             
             # 2. Création de la page sur Notion
-            logger.info("Étape 2/3 : Création de la page sur Notion...")
-            notion_page = self.notion_service.create_halakha_page(
+            logger.info("Étape 2/2 : Création de la page sur Notion...")
+            notion_page = await self.notion_service.create_halakha_page(
                 complete_data,
                 add_day=add_day_for_notion,
             )

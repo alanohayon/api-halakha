@@ -1,18 +1,27 @@
 import logging
 import os
 import boto3
+from app.utils.image_utils import get_latest_image_path
 from botocore.exceptions import ClientError
-from supabase import Client, SupabaseException
+from supabase import SupabaseException
 from typing import List, Dict, Optional
 from app.utils.performance import measure_execution_time
-from app.core.config import Settings
+from supabase import create_client
+from app.core.config import get_settings
+from app.core.database import get_supabase
+from app.utils.image_utils import get_clean_filename
+
 
 
 logger = logging.getLogger(__name__)
 
 class SupabaseService:
-    def __init__(self, supabase_client: Client):
+    def __init__(self):
+        supabase_client = get_supabase()
+        settings = get_settings()
+        
         self.client = supabase_client
+        self.settings = settings
     
     # ============================================================================
     # HALAKHOT - CRUD Operations
@@ -546,12 +555,7 @@ class SupabaseService:
         Returns:
             URL publique de l'image uploadée ou None en cas d'erreur
         """
-        try:
-            # Charger la configuration
-            from app.core.config import get_settings
-            settings = get_settings()
-            
-    
+        try:    
             
             file_name = os.path.basename(image_path)
             
@@ -561,7 +565,7 @@ class SupabaseService:
                 endpoint_url="https://uiuormkgtawyflcaqhgl.supabase.co/storage/v1/s3",
                 region_name="eu-west-3",
                 aws_access_key_id="695ba2b1985bd84b434a150ea111f910",
-                aws_secret_access_key=settings.supabase_service_key,  # Utiliser la service key comme secret
+                aws_secret_access_key=self.settings.supabase_service_key,  # Utiliser la service key comme secret
             )
             
             # Upload le fichier
@@ -577,7 +581,7 @@ class SupabaseService:
                 )
             
             # Construire l'URL publique
-            public_url = f"{settings.endpoint_s3}/{bucket}/{file_name}"
+            public_url = f"{self.settings.endpoint_s3}/{bucket}/{file_name}"
             logger.info(f"Image uploadée avec succès: {public_url}")
             print(f"URL publique: {public_url}")
             
@@ -603,7 +607,7 @@ class SupabaseService:
         }
         return content_types.get(extension, 'image/jpeg')
     
-    async def uploa_img_to_supabase(self, image_path: str, bucket: str = "notion-images") -> Optional[str]:
+    async def upload_img_to_supabase(self, image_path: str, clean_filename: Optional[str] = None, bucket: str = "notion-images") -> Optional[str]:
         """
         Upload une image vers Supabase Storage et retourne l'URL publique
         
@@ -615,21 +619,22 @@ class SupabaseService:
             URL publique de l'image uploadée ou None en cas d'erreur
         """
         try:
-            # Utiliser la service key pour les permissions d'admin
-            from supabase import create_client
-            from app.core.config import get_settings
-            settings = get_settings()
             
             # Créer un client avec la service key pour l'upload
-            admin_client = create_client(settings.supabase_url, settings.supabase_service_key)
-            
-            file_name = os.path.basename(image_path)
-            print(f"📤 Upload du fichier: {file_name}")
+            admin_client = create_client(self.settings.supabase_url, self.settings.supabase_service_key)
+
+            # Utiliser le nom nettoyé si fourni, sinon nettoyer automatiquement
+            if clean_filename:
+                file_name = clean_filename
+                print(f"📤 Upload du fichier: {os.path.basename(image_path)} -> {file_name}")
+            else:
+                file_name = get_clean_filename(image_path)
+                print(f"📤 Upload du fichier (auto-nettoyé): {os.path.basename(image_path)} -> {file_name}")
             
             with open(image_path, "rb") as f:
                 response = admin_client.storage.from_(bucket).upload(
                     file=f,
-                    path=file_name,  # Utiliser juste le nom du fichier, pas le chemin complet
+                    path=file_name,  # Utiliser juste le nom du fichier
                     file_options={"cache-control": "3600", "upsert": "false"}
                 )
             
@@ -649,4 +654,45 @@ class SupabaseService:
         except Exception as e:
             logger.error(f"Erreur lors de l'upload: {e}")
             print(f"❌ Erreur: {e}")
+            return None
+        
+    async def get_last_img_supabase(self) -> Optional[str]:
+        """
+        Récupère la dernière image uploadée dans Supabase, via l'api et chercher dans storage
+        
+        Returns:
+            URL publique de la dernière image ou None si aucune image trouvée
+        """
+        try:
+            logger.info(" 📨 Récupération de la dernière image uploadée dans Supabase")
+            
+            # Utiliser le client avec service key pour accéder au storage
+            admin_client = create_client(self.settings.supabase_url, self.settings.supabase_service_key)
+            response = admin_client.storage.from_("notion-images").list()
+            print(response)
+            # Vérifier si la réponse contient des données
+            if not response or not hasattr(response, 'data') or not response.data:
+                logger.warning("Aucune image trouvée dans le storage")
+                return None
+                
+            # Trier les fichiers par date de création (du plus récent au plus ancien)
+            files = response.data
+            if not files:
+                logger.warning("Le bucket notion-images est vide")
+                return None
+                
+            # Trier par created_at (champ standard des objets storage Supabase)
+            sorted_files = sorted(files, key=lambda x: x.get('created_at', ''), reverse=True)
+            last_file = sorted_files[0]
+            
+            logger.info(f"Dernière image trouvée: {last_file.get('name', 'nom inconnu')}")
+            
+            # Récupérer l'URL publique
+            image_url = admin_client.storage.from_("notion-images").get_public_url(last_file['name'])
+            
+            logger.info(f"✅ URL de la dernière image: {image_url}")
+            return image_url
+            
+        except Exception as e:
+            logger.error(f"❌ Erreur lors de la récupération de la dernière image: {e}")
             return None
