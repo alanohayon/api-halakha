@@ -158,8 +158,9 @@ class NotionService:
                 # L'API Notion a une limite de 2000 caractères par bloc de texte riche.
                 if len(content) > 2000:
                     logger.warning(f"Le contenu du champ '{key}' dépasse 2000 caractères et sera tronqué.")
-                    content = content[:1997] + "..."
                     logger.warning(" ⚠️ Content du text trop long, text raccourci ! ")
+                    print(content)
+                    content = content[:1900] + "..."
                 
                 properties[key] = {"rich_text": [{"text": {"content": content}}]}
 

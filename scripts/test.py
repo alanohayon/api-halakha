@@ -100,19 +100,16 @@ async def test_text_sanitization():
     
     # Texte avec caractères problématiques
     problematic_text = '''
-    
-    Peut on utiliser un meme micro-onde pour le lait et la viande?
 
-On parle d'un micro-onde standard et non d'un four micro-onde.
+Peut on deplacer une plata branchée pendant shabbat  (ex : la decaler pour nettoyer quelque chose ou pour qu'elle chauffe moins l'endroit ou elle se trouve)?
 
-•⁠  ⁠A priori, on aura un micro-onde pour le lait et un autre pour la viande [ Psakime vetchouvot 92-25,  Chvout itshak diné mikrigol p51 au nom du Rav Eliachiv et S.Z.Ayeurbah].
+•⁠  ⁠D'après la majorité des décisionnaires, une plata a un statut de "moukssé mehamat goufo" du fait de ses corps chauffants qui rougissent [ Halikhot shabbat t1,13-7]
+=> Il est donc interdit de la deplacer pour quelque besoin que ce soit, comme une pierre, de l'argent etc...
+=> Et ce même si il y a une marmite rempli d'aliments dessus [ Choulhan Aroukh OH 311-5,308-5].
 
-•⁠  ⁠Toutefois, si cela nest pas envisageable, l'utilisation d'un meme micro-onde :
-=> D'après certains, est permise, si on veille a bien recouvrir chaque plat (viande/lait) par une cloche totalement hermétique [ Or letsion t5,22-8].
-=> Selon d'autres, est permise si on veille à le casheriser entre chaque utilisation, et en recouvrant chaque plat par une cloche totalement hermétique [ Yalkout yossef 87-167].
-
-•⁠  ⁠En pratique, celui qui ne peut se procurer 2 micro-ondes a sur qui s'appuyer en utilisant le même si chaque plat viande/lait est toujours bien recouvert et idéalement s'il le casherise entre chaque utilisation.
-    
+•⁠  ⁠La solution en cas de besoin sera de la deplacer de manière inhabituelle, comme la decaler avec le coude [ Choulhan Aroukh OH 311-8].
+[Celui qui la deplace normalement (car il a besoin de la place qu'elle occupe), on ne peut le reprimander (en s'appuyant sur le Iguerot moshe qui dit que cest "keli chemelahto leissour"]    
+   
     '''
     
     print("📝 Texte original :")
