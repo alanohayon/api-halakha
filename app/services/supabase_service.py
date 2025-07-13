@@ -1,12 +1,8 @@
 import logging
 import os
-import boto3
-from app.utils.image_utils import get_latest_image_path
-from botocore.exceptions import ClientError
 from supabase import SupabaseException
 from typing import List, Dict, Optional
 from app.utils.performance import measure_execution_time
-from supabase import create_client
 from app.core.config import get_settings
 from app.core.database import get_supabase
 from app.utils.image_utils import get_clean_filename
@@ -306,306 +302,245 @@ class SupabaseService:
             print(f"Erreur lors de la suppression de la halakha: {e}")
             return False
 
-    @measure_execution_time("Recherche d'une halakha Supabase")
-    async def search_halakhot(self, 
-                             search: Optional[str] = None,
-                             theme: Optional[str] = None, 
-                             tag: Optional[str] = None,
-                             author: Optional[str] = None,
-                             difficulty_level: Optional[int] = None,
-                             skip: int = 0,
-                             limit: int = 100) -> List[Dict]:
-        """
-        Recherche avancée des halakhot avec filtres et pagination
-        """
-        query = self.client.table('halakhot').select('*')
+    # @measure_execution_time("Recherche d'une halakha Supabase")
+    # async def search_halakhot(self, 
+    #                          search: Optional[str] = None,
+    #                          theme: Optional[str] = None, 
+    #                          tag: Optional[str] = None,
+    #                          author: Optional[str] = None,
+    #                          difficulty_level: Optional[int] = None,
+    #                          skip: int = 0,
+    #                          limit: int = 100) -> List[Dict]:
+    #     """
+    #     Recherche avancée des halakhot avec filtres et pagination
+    #     """
+    #     query = self.client.table('halakhot').select('*')
         
-        # Recherche textuelle dans le titre et le contenu
-        if search:
-            # Utiliser OR pour chercher dans title ET content
-            query = query.or_(f'title.ilike.%{search}%,content.ilike.%{search}%')
+    #     # Recherche textuelle dans le titre et le contenu
+    #     if search:
+    #         # Utiliser OR pour chercher dans title ET content
+    #         query = query.or_(f'title.ilike.%{search}%,content.ilike.%{search}%')
         
-        # Filtrer par niveau de difficulté
-        if difficulty_level:
-            query = query.eq('difficulty_level', difficulty_level)
+    #     # Filtrer par niveau de difficulté
+    #     if difficulty_level:
+    #         query = query.eq('difficulty_level', difficulty_level)
         
-        # TODO: Implémenter les filtres par theme, tag et author avec des jointures
-        # Ces filtres nécessitent des jointures complexes avec les tables de relations
+    #     # TODO: Implémenter les filtres par theme, tag et author avec des jointures
+    #     # Ces filtres nécessitent des jointures complexes avec les tables de relations
         
-        response = query.range(skip, skip + limit - 1).execute()
-        return response.data
+    #     response = query.range(skip, skip + limit - 1).execute()
+    #     return response.data
 
-    async def get_halakha_sources(self, halakha_id: int) -> List[Dict]:
-        """Récupérer toutes les sources associées à une halakha"""
-        response = (
-            self.client.table('halakha_sources')
-            .select('sources(*)')
-            .eq('halakha_id', halakha_id)
-            .execute()
-        )
-        return [item['sources'] for item in response.data] if response.data else []
+    # async def get_halakha_sources(self, halakha_id: int) -> List[Dict]:
+    #     """Récupérer toutes les sources associées à une halakha"""
+    #     response = (
+    #         self.client.table('halakha_sources')
+    #         .select('sources(*)')
+    #         .eq('halakha_id', halakha_id)
+    #         .execute()
+    #     )
+    #     return [item['sources'] for item in response.data] if response.data else []
 
-    # ============================================================================
-    # SOURCES - CRUD Operations
-    # ============================================================================
+    # # ============================================================================
+    # # SOURCES - CRUD Operations
+    # # ============================================================================
     
-    async def get_sources(self, skip: int = 0, limit: int = 100, name: Optional[str] = None) -> List[Dict]:
-        """Récupérer les sources avec pagination et filtres"""
-        query = self.client.table('sources').select('*')
+    # async def get_sources(self, skip: int = 0, limit: int = 100, name: Optional[str] = None) -> List[Dict]:
+    #     """Récupérer les sources avec pagination et filtres"""
+    #     query = self.client.table('sources').select('*')
         
-        if name:
-            query = query.ilike('name', f'%{name}%')
+    #     if name:
+    #         query = query.ilike('name', f'%{name}%')
             
-        response = query.range(skip, skip + limit - 1).execute()
-        return response.data
+    #     response = query.range(skip, skip + limit - 1).execute()
+    #     return response.data
     
-    async def get_source_by_id(self, source_id: int) -> Optional[Dict]:
-        """Récupérer une source par ID"""
-        response = (
-            self.client.table('sources')
-            .select('*')
-            .eq('id', source_id)
-            .execute()
-        )
-        return response.data[0] if response.data else None
+    # async def get_source_by_id(self, source_id: int) -> Optional[Dict]:
+    #     """Récupérer une source par ID"""
+    #     response = (
+    #         self.client.table('sources')
+    #         .select('*')
+    #         .eq('id', source_id)
+    #         .execute()
+    #     )
+    #     return response.data[0] if response.data else None
     
-    async def get_halakhot_by_source(self, source_id: int, skip: int = 0, limit: int = 100) -> List[Dict]:
-        """Récupérer toutes les halakhot associées à une source"""
-        response = (
-            self.client.table('halakha_sources')
-            .select('halakhot(*)')
-            .eq('source_id', source_id)
-            .range(skip, skip + limit - 1)
-            .execute()
-        )
-        return [item['halakhot'] for item in response.data] if response.data else []
+    # async def get_halakhot_by_source(self, source_id: int, skip: int = 0, limit: int = 100) -> List[Dict]:
+    #     """Récupérer toutes les halakhot associées à une source"""
+    #     response = (
+    #         self.client.table('halakha_sources')
+    #         .select('halakhot(*)')
+    #         .eq('source_id', source_id)
+    #         .range(skip, skip + limit - 1)
+    #         .execute()
+    #     )
+    #     return [item['halakhot'] for item in response.data] if response.data else []
 
-    # ============================================================================
-    # THEMES - CRUD Operations
-    # ============================================================================
+    # # ============================================================================
+    # # THEMES - CRUD Operations
+    # # ============================================================================
     
-    async def get_themes(self, skip: int = 0, limit: int = 100, name: Optional[str] = None) -> List[Dict]:
-        """Récupérer les thèmes avec pagination et filtres"""
-        query = self.client.table('themes').select('*')
+    # async def get_themes(self, skip: int = 0, limit: int = 100, name: Optional[str] = None) -> List[Dict]:
+    #     """Récupérer les thèmes avec pagination et filtres"""
+    #     query = self.client.table('themes').select('*')
         
-        if name:
-            query = query.ilike('name', f'%{name}%')
+    #     if name:
+    #         query = query.ilike('name', f'%{name}%')
             
-        response = query.range(skip, skip + limit - 1).execute()
-        return response.data
+    #     response = query.range(skip, skip + limit - 1).execute()
+    #     return response.data
     
-    async def get_theme_by_id(self, theme_id: int) -> Optional[Dict]:
-        """Récupérer un thème par ID"""
-        response = (
-            self.client.table('themes')
-            .select('*')
-            .eq('id', theme_id)
-            .execute()
-        )
-        return response.data[0] if response.data else None
+    # async def get_theme_by_id(self, theme_id: int) -> Optional[Dict]:
+    #     """Récupérer un thème par ID"""
+    #     response = (
+    #         self.client.table('themes')
+    #         .select('*')
+    #         .eq('id', theme_id)
+    #         .execute()
+    #     )
+    #     return response.data[0] if response.data else None
     
-    async def get_halakhot_by_theme(self, theme_id: int, skip: int = 0, limit: int = 100) -> List[Dict]:
-        """Récupérer toutes les halakhot associées à un thème"""
-        response = (
-            self.client.table('halakha_themes')
-            .select('halakhot(*)')
-            .eq('theme_id', theme_id)
-            .range(skip, skip + limit - 1)
-            .execute()
-        )
-        return [item['halakhot'] for item in response.data] if response.data else []
+    # async def get_halakhot_by_theme(self, theme_id: int, skip: int = 0, limit: int = 100) -> List[Dict]:
+    #     """Récupérer toutes les halakhot associées à un thème"""
+    #     response = (
+    #         self.client.table('halakha_themes')
+    #         .select('halakhot(*)')
+    #         .eq('theme_id', theme_id)
+    #         .range(skip, skip + limit - 1)
+    #         .execute()
+    #     )
+    #     return [item['halakhot'] for item in response.data] if response.data else []
 
-    # ============================================================================
-    # TAGS - CRUD Operations
-    # ============================================================================
+    # # ============================================================================
+    # # TAGS - CRUD Operations
+    # # ============================================================================
     
-    async def get_tags(self, skip: int = 0, limit: int = 100, name: Optional[str] = None) -> List[Dict]:
-        """Récupérer les tags avec pagination et filtres"""
-        query = self.client.table('tags').select('*')
+    # async def get_tags(self, skip: int = 0, limit: int = 100, name: Optional[str] = None) -> List[Dict]:
+    #     """Récupérer les tags avec pagination et filtres"""
+    #     query = self.client.table('tags').select('*')
         
-        if name:
-            query = query.ilike('name', f'%{name}%')
+    #     if name:
+    #         query = query.ilike('name', f'%{name}%')
             
-        response = query.range(skip, skip + limit - 1).execute()
-        return response.data
+    #     response = query.range(skip, skip + limit - 1).execute()
+    #     return response.data
     
-    async def get_tag_by_id(self, tag_id: int) -> Optional[Dict]:
-        """Récupérer un tag par ID"""
-        response = (
-            self.client.table('tags')
-            .select('*')
-            .eq('id', tag_id)
-            .execute()
-        )
-        return response.data[0] if response.data else None
+    # async def get_tag_by_id(self, tag_id: int) -> Optional[Dict]:
+    #     """Récupérer un tag par ID"""
+    #     response = (
+    #         self.client.table('tags')
+    #         .select('*')
+    #         .eq('id', tag_id)
+    #         .execute()
+    #     )
+    #     return response.data[0] if response.data else None
     
-    async def get_halakhot_by_tag(self, tag_id: int, skip: int = 0, limit: int = 100) -> List[Dict]:
-        """Récupérer toutes les halakhot associées à un tag"""
-        response = (
-            self.client.table('halakha_tags')
-            .select('halakhot(*)')
-            .eq('tag_id', tag_id)
-            .range(skip, skip + limit - 1)
-            .execute()
-        )
-        return [item['halakhot'] for item in response.data] if response.data else []
+    # async def get_halakhot_by_tag(self, tag_id: int, skip: int = 0, limit: int = 100) -> List[Dict]:
+    #     """Récupérer toutes les halakhot associées à un tag"""
+    #     response = (
+    #         self.client.table('halakha_tags')
+    #         .select('halakhot(*)')
+    #         .eq('tag_id', tag_id)
+    #         .range(skip, skip + limit - 1)
+    #         .execute()
+    #     )
+    #     return [item['halakhot'] for item in response.data] if response.data else []
 
-    # ============================================================================
-    # LEGACY METHODS (à conserver pour compatibilité)
-    # ============================================================================
+    # # ============================================================================
+    # # LEGACY METHODS (à conserver pour compatibilité)
+    # # ============================================================================
     
-    async def get_halakhot_with_relations(self) -> List[Dict]:
-        """
-        Récupère les halakhot avec leurs relations (source, question, answer)
-        """
-        response = (
-            self.client.table('halakhot')
-            .select('*, sources(name), questions(*), answers(*)')
-            .execute()
-        )
-        return response.data
+    # async def get_halakhot_with_relations(self) -> List[Dict]:
+    #     """
+    #     Récupère les halakhot avec leurs relations (source, question, answer)
+    #     """
+    #     response = (
+    #         self.client.table('halakhot')
+    #         .select('*, sources(name), questions(*), answers(*)')
+    #         .execute()
+    #     )
+    #     return response.data
     
-    async def search_halakhot_by_tag(self, tag_name: str) -> List[Dict]:
-        """
-        Recherche des halakhot par tag (nécessite une jointure avec la table halakha_tags)
-        """
-        response = (
-            self.client.table('halakha_tags')
-            .select('halakha_id, tags(name)')
-            .eq('tags.name', tag_name)
-            .execute()
-        )
+    # async def search_halakhot_by_tag(self, tag_name: str) -> List[Dict]:
+    #     """
+    #     Recherche des halakhot par tag (nécessite une jointure avec la table halakha_tags)
+    #     """
+    #     response = (
+    #         self.client.table('halakha_tags')
+    #         .select('halakha_id, tags(name)')
+    #         .eq('tags.name', tag_name)
+    #         .execute()
+    #     )
         
-        if response.data:
-            halakha_ids = [item['halakha_id'] for item in response.data]
-            halakhot_response = (
-                self.client.table('halakhot')
-                .select('*')
-                .in_('id', halakha_ids)
-                .execute()
-            )
-            return halakhot_response.data
+    #     if response.data:
+    #         halakha_ids = [item['halakha_id'] for item in response.data]
+    #         halakhot_response = (
+    #             self.client.table('halakhot')
+    #             .select('*')
+    #             .in_('id', halakha_ids)
+    #             .execute()
+    #         )
+    #         return halakhot_response.data
         
-        return []
+    #     return []
 
-    async def replace_halakha(self, halakha_id: int, halakha_data: Dict) -> Dict:
-        """
-        Remplace complètement une halakha (PUT)
-        Supprime et recrée toutes les relations
-        """
-        try:
-            # 1. Supprimer l'ancienne halakha et ses relations
-            await self.delete_halakha(halakha_id)
+    # async def replace_halakha(self, halakha_id: int, halakha_data: Dict) -> Dict:
+    #     """
+    #     Remplace complètement une halakha (PUT)
+    #     Supprime et recrée toutes les relations
+    #     """
+    #     try:
+    #         # 1. Supprimer l'ancienne halakha et ses relations
+    #         await self.delete_halakha(halakha_id)
             
-            # 2. Créer la nouvelle halakha avec le même ID (si possible)
-            # Note: En Supabase, l'ID sera auto-généré, donc on ne peut pas garantir le même ID
-            new_halakha = await self.create_halakha(halakha_data)
+    #         # 2. Créer la nouvelle halakha avec le même ID (si possible)
+    #         # Note: En Supabase, l'ID sera auto-généré, donc on ne peut pas garantir le même ID
+    #         new_halakha = await self.create_halakha(halakha_data)
             
-            return new_halakha
+    #         return new_halakha
             
-        except Exception as e:
-            print(f"Erreur lors du remplacement de la halakha: {e}")
-            raise e
+    #     except Exception as e:
+    #         print(f"Erreur lors du remplacement de la halakha: {e}")
+    #         raise e
 
-    async def update_halakha_partial(self, halakha_id: int, updates: Dict) -> Dict:
-        """
-        Mise à jour partielle d'une halakha (PATCH)
-        Met à jour uniquement les champs spécifiés
-        """
-        try:
-            # Mise à jour de la table principale halakhot
-            response = (
-                self.client.table('halakhot')
-                .update(updates)
-                .eq('id', halakha_id)
-                .execute()
-            )
+    # async def update_halakha_partial(self, halakha_id: int, updates: Dict) -> Dict:
+    #     """
+    #     Mise à jour partielle d'une halakha (PATCH)
+    #     Met à jour uniquement les champs spécifiés
+    #     """
+    #     try:
+    #         # Mise à jour de la table principale halakhot
+    #         response = (
+    #             self.client.table('halakhot')
+    #             .update(updates)
+    #             .eq('id', halakha_id)
+    #             .execute()
+    #         )
             
-            # Si on met à jour la question ou la réponse, mettre à jour les tables liées
-            if 'question' in updates:
-                halakha_info = self.client.table('halakhot').select('question_id').eq('id', halakha_id).execute()
-                if halakha_info.data:
-                    question_id = halakha_info.data[0]['question_id']
-                    self.client.table('questions').update({
-                        'question': updates['question']
-                    }).eq('id', question_id).execute()
+    #         # Si on met à jour la question ou la réponse, mettre à jour les tables liées
+    #         if 'question' in updates:
+    #             halakha_info = self.client.table('halakhot').select('question_id').eq('id', halakha_id).execute()
+    #             if halakha_info.data:
+    #                 question_id = halakha_info.data[0]['question_id']
+    #                 self.client.table('questions').update({
+    #                     'question': updates['question']
+    #                 }).eq('id', question_id).execute()
             
-            if 'answer' in updates:
-                halakha_info = self.client.table('halakhot').select('answer_id').eq('id', halakha_id).execute()
-                if halakha_info.data:
-                    answer_id = halakha_info.data[0]['answer_id']
-                    self.client.table('answers').update({
-                        'answer': updates['answer']
-                    }).eq('id', answer_id).execute()
+    #         if 'answer' in updates:
+    #             halakha_info = self.client.table('halakhot').select('answer_id').eq('id', halakha_id).execute()
+    #             if halakha_info.data:
+    #                 answer_id = halakha_info.data[0]['answer_id']
+    #                 self.client.table('answers').update({
+    #                     'answer': updates['answer']
+    #                 }).eq('id', answer_id).execute()
             
-            return response.data[0] if response.data else None
+    #         return response.data[0] if response.data else None
             
-        except Exception as e:
-            print(f"Erreur lors de la mise à jour partielle de la halakha: {e}")
-            raise e
+    #     except Exception as e:
+    #         print(f"Erreur lors de la mise à jour partielle de la halakha: {e}")
+    #         raise e
         
-    async def upload_image(self, image_path: str, bucket: str = "notion-images") -> Optional[str]:
-        """
-        Upload une image vers Supabase Storage en utilisant l'interface S3 et retourne l'URL publique
-        
-        Args:
-            image_path: Chemin vers le fichier image
-            bucket: Nom du bucket Supabase (par défaut "notion-images")
-            
-        Returns:
-            URL publique de l'image uploadée ou None en cas d'erreur
-        """
-        try:    
-            
-            file_name = os.path.basename(image_path)
-            
-            # Configurer le client S3 pour Supabase Storage
-            s3_client = boto3.client(
-                's3',
-                endpoint_url="https://uiuormkgtawyflcaqhgl.supabase.co/storage/v1/s3",
-                region_name="eu-west-3",
-                aws_access_key_id="695ba2b1985bd84b434a150ea111f910",
-                aws_secret_access_key=self.settings.supabase_service_key,  # Utiliser la service key comme secret
-            )
-            
-            # Upload le fichier
-            with open(image_path, "rb") as f:
-                s3_client.upload_fileobj(
-                    f,
-                    bucket,
-                    file_name,
-                    ExtraArgs={
-                        'ContentType': self._get_content_type(file_name),
-                        'CacheControl': 'max-age=3600'
-                    }
-                )
-            
-            # Construire l'URL publique
-            public_url = f"{self.settings.endpoint_s3}/{bucket}/{file_name}"
-            logger.info(f"Image uploadée avec succès: {public_url}")
-            print(f"URL publique: {public_url}")
-            
-            return public_url
-            
-        except ClientError as e:
-            logger.error(f"Erreur S3 lors de l'upload de l'image: {e}")
-            return None
-        except Exception as e:
-            logger.error(f"Erreur lors de l'upload de l'image: {e}")
-            return None
-    
-    def _get_content_type(self, filename: str) -> str:
-        """Détermine le type MIME basé sur l'extension du fichier"""
-        extension = filename.lower().split('.')[-1]
-        content_types = {
-            'jpg': 'image/jpeg',
-            'jpeg': 'image/jpeg',
-            'png': 'image/png',
-            'gif': 'image/gif',
-            'webp': 'image/webp',
-            'svg': 'image/svg+xml'
-        }
-        return content_types.get(extension, 'image/jpeg')
+
     
     async def upload_img_to_supabase(self, image_path: str, clean_filename: Optional[str] = None, bucket: str = "notion-images") -> Optional[str]:
         """
@@ -613,86 +548,108 @@ class SupabaseService:
         
         Args:
             image_path: Chemin vers le fichier image
+            clean_filename: Nom de fichier personnalisé (optionnel)
             bucket: Nom du bucket Supabase (par défaut "notion-images")
             
         Returns:
             URL publique de l'image uploadée ou None en cas d'erreur
         """
         try:
+            logger.info(f"📤 Début de l'upload vers Supabase Storage")
             
-            # Créer un client avec la service key pour l'upload
-            admin_client = create_client(self.settings.supabase_url, self.settings.supabase_service_key)
-
             # Utiliser le nom nettoyé si fourni, sinon nettoyer automatiquement
             if clean_filename:
                 file_name = clean_filename
-                print(f"📤 Upload du fichier: {os.path.basename(image_path)} -> {file_name}")
+                logger.info(f"📤 Upload du fichier: {os.path.basename(image_path)} -> {file_name}")
             else:
                 file_name = get_clean_filename(image_path)
-                print(f"📤 Upload du fichier (auto-nettoyé): {os.path.basename(image_path)} -> {file_name}")
+                logger.info(f"📤 Upload du fichier (auto-nettoyé): {os.path.basename(image_path)} -> {file_name}")
             
+            # Upload via l'API officielle Python Supabase
             with open(image_path, "rb") as f:
-                response = admin_client.storage.from_(bucket).upload(
+                response = self.client.storage.from_(bucket).upload(
                     file=f,
-                    path=file_name,  # Utiliser juste le nom du fichier
-                    file_options={"cache-control": "3600", "upsert": "false"}
+                    path=file_name,
+                    file_options={
+                        "cache-control": "3600", 
+                        "upsert": "false"
+                    }
                 )
             
-            print("Response upload:", response)
+            logger.info(f"🔍 Response upload: {response}")
             
+            # Vérifier les erreurs
             if hasattr(response, 'error') and response.error:
                 logger.error(f"Erreur lors de l'upload: {response.error}")
                 return None
             
-            # Générer l'URL publique
-            public_url = admin_client.storage.from_(bucket).get_public_url(file_name)
-            logger.info(f"Image uploadée avec succès: {public_url}")
-            print(f"✅ URL publique: {public_url}")
+            # Générer l'URL publique via l'API officielle
+            public_url_response = self.client.storage.from_(bucket).get_public_url(file_name)
             
+            if hasattr(public_url_response, 'error') and public_url_response.error:
+                logger.error(f"Erreur lors de la génération de l'URL publique: {public_url_response.error}")
+                return None
+            
+            # L'URL publique est directement dans la réponse
+            public_url = public_url_response if isinstance(public_url_response, str) else public_url_response.get('publicUrl')
+            
+            logger.info(f"✅ Image uploadée avec succès: {public_url}")
             return public_url
             
         except Exception as e:
-            logger.error(f"Erreur lors de l'upload: {e}")
-            print(f"❌ Erreur: {e}")
+            logger.error(f"❌ Erreur lors de l'upload: {e}", exc_info=True)
             return None
         
-    async def get_last_img_supabase(self) -> Optional[str]:
+    async def get_last_img_supabase(self, bucket: str = "notion-images") -> Optional[str]:
         """
-        Récupère la dernière image uploadée dans Supabase, via l'api et chercher dans storage
+        Récupère la dernière image uploadée dans Supabase Storage
         
+        Args:
+            bucket: Nom du bucket (par défaut "notion-images")
+            
         Returns:
             URL publique de la dernière image ou None si aucune image trouvée
         """
+        
         try:
-            logger.info(" 📨 Récupération de la dernière image uploadée dans Supabase")
+            self.client.storage.get_bucket(bucket)
+            logger.info(f"✅ Bucket: {bucket} trouvé")
+        except Exception as e:
+            logger.error(f"❌ Erreur lors de la récupération du bucket: {e}", exc_info=True)
+            return e
+        
+        try:
+            logger.info(f"📨 Récupération de la dernière image dans le bucket: {bucket}")
             
-            # Utiliser le client avec service key pour accéder au storage
-            admin_client = create_client(self.settings.supabase_url, self.settings.supabase_service_key)
-            response = admin_client.storage.from_("notion-images").list()
-            print(response)
-            # Vérifier si la réponse contient des données
-            if not response or not hasattr(response, 'data') or not response.data:
-                logger.warning("Aucune image trouvée dans le storage")
+            # Lister les fichiers via l'API officielle Python Supabase
+            response = self.client.storage.from_(bucket).list(
+                    options={
+                        "limit": 100,
+                        "offset": 0,
+                        "sortBy": {"column": "created_at", "order": "desc"},  # Trier par date de création
+                    }
+                )
+            if response and len(response) > 0:
+                logger.info(f"🔍 Liste non vide")
+            else:
+                logger.warning(f"Aucune image trouvée dans le bucket {bucket}, data_bucket: {response}")
                 return None
-                
-            # Trier les fichiers par date de création (du plus récent au plus ancien)
-            files = response.data
-            if not files:
-                logger.warning("Le bucket notion-images est vide")
-                return None
-                
-            # Trier par created_at (champ standard des objets storage Supabase)
-            sorted_files = sorted(files, key=lambda x: x.get('created_at', ''), reverse=True)
+            
+            # Trier par created_at (du plus récent au plus ancien)
+            sorted_files = sorted(response, key=lambda x: x.get('created_at', ''), reverse=True)
             last_file = sorted_files[0]
             
-            logger.info(f"Dernière image trouvée: {last_file.get('name', 'nom inconnu')}")
+            logger.info(f"📷 Dernière image trouvée: {last_file.get('name', 'nom inconnu')}")
             
-            # Récupérer l'URL publique
-            image_url = admin_client.storage.from_("notion-images").get_public_url(last_file['name'])
+            # Récupérer l'URL publique via l'API officielle
+            public_url_response = self.client.storage.from_(bucket).get_public_url(last_file['name'])
+                        
+            # L'URL publique est directement dans la réponse
+            image_url = public_url_response if isinstance(public_url_response, str) else public_url_response.get('publicUrl')
             
             logger.info(f"✅ URL de la dernière image: {image_url}")
-            return image_url
+            return image_url, last_file['name']
             
         except Exception as e:
-            logger.error(f"❌ Erreur lors de la récupération de la dernière image: {e}")
+            logger.error(f"❌ Erreur lors de la récupération de la dernière image: {e}", exc_info=True)
             return None

@@ -15,4 +15,5 @@ openai
 notion_client
 greenlet
 boto3
+python-dotenv psycopg2
   

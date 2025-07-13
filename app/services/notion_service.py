@@ -7,7 +7,6 @@ from app.core.database import get_supabase
 from app.utils.performance import measure_execution_time
 import os
 from app.services.supabase_service import SupabaseService
-from app.utils.image_utils import get_latest_image_with_clean_name
 
 
 # Configure logging
@@ -156,7 +155,7 @@ class NotionService:
             if key in processed_data and processed_data[key]:
                 content = processed_data[key]
                 # L'API Notion a une limite de 2000 caractères par bloc de texte riche.
-                if len(content) > 2000:
+                if  len(content) > 2000:
                     logger.warning(f"Le contenu du champ '{key}' dépasse 2000 caractères et sera tronqué.")
                     logger.warning(" ⚠️ Content du text trop long, text raccourci ! ")
                     print(content)
@@ -164,13 +163,13 @@ class NotionService:
                 
                 properties[key] = {"rich_text": [{"text": {"content": content}}]}
 
-        # Ajout de l'image si disponible
-        try:
-            supabase_service = SupabaseService()
-            image_url = await supabase_service.get_last_img_supabase()
-        except Exception as e:
-            logger.error(f"Erreur lors de la récupération de l'image : {e}")
-            image_url = None
+        # # Ajout de l'image si disponible
+        # try:
+        #     supabase_service = SupabaseService()
+        #     image_url = await supabase_service.get_last_img_supabase()
+        # except Exception as e:
+        #     logger.error(f"Erreur lors de la récupération de l'image : {e}")
+        #     image_url = None
             
         if image_url:
             properties["image"] = {
@@ -186,7 +185,7 @@ class NotionService:
             }
         
         # Champ Date
-        date_value = datetime.now() + timedelta(days=add_day)
+        date_value = (datetime.now() + timedelta(days=add_day)).date()
         properties["date_post"] = {"date": {"start": date_value.isoformat()}}
         
         # Champ Status - Configurable
@@ -196,7 +195,7 @@ class NotionService:
         return properties
         
     @measure_execution_time("Création d'une Halakha Notion")
-    async def create_halakha_page(self, processed_data: dict, add_day: int, status: str = NotionStatus.INPROGRESS) -> dict:
+    async def create_halakha_page(self, processed_data: dict, add_day: int, image_url: str = None, status: str = NotionStatus.INPROGRESS) -> dict:
         """
         Crée une nouvelle page dans la base de données Notion des posts.
         
@@ -211,7 +210,7 @@ class NotionService:
         
         logger.info(f"Création d'une nouvelle page Notion dans la base de données: {self.settings.notion_database_id_post_halakha}")
 
-        properties = await self._build_page_properties(processed_data, add_day, status)
+        properties = await self._build_page_properties(processed_data, add_day, image_url, status)
         
         try:      
             response = self.notion.pages.create(

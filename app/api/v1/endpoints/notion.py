@@ -5,41 +5,14 @@ from typing import Dict, Any, List
 
 from app.services.notion_service import NotionService, NotionStatus
 from app.schemas.notion import NotionPageRequest
-from app.schemas.halakha import HalakhaNotionPost, HalakhaNotionInputBrut
 from app.api.deps import get_settings_dependency
 from app.core.config import Settings
-from app.services.processing_service import ProcessingService
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-# Endpoint pour créer une page post avancée
-@router.post("/post", response_model=HalakhaNotionPost)
-async def process_single_halakha(halakha_input: HalakhaNotionInputBrut):
-    """
-        Post une halakha sur Notion : analyse avec OpenAI et publication sur Notion.
-    """
-    logger.info(f"Requête reçue pour poster une nouvelle halakha.")
-    try:
-        
-        # On instancie le service d'orchestration avec le client Supabase
-        processing_service = ProcessingService()
-
-        # On lance le processus complet
-        notion_url = await processing_service.process_halakha_for_notion(
-            halakha_content=halakha_input.content,
-            add_day_for_notion=halakha_input.schedule_days
-        )
-
-        
-        return HalakhaNotionPost(notion_page_url=notion_url)
-
-    except Exception as e:
-        logger.error(f"Erreur lors du traitement de la requête /processing/halakhot: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Une erreur interne est survenue: {str(e)}"
-        )
+# Route migrée vers /api/v1/processing/halakha-to-notion 
+# Ancienne route /post supprimée pour éviter l'exposition de la technologie Notion
 
 # Endpoint pour créer une page Notion
 # @router.post("/page")

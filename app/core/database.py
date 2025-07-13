@@ -21,7 +21,7 @@ class Base(DeclarativeBase):
     pass
 
 # Client Supabase pour les opérations simples et auth
-supabase: Client = create_client(settings.supabase_url, settings.supabase_anon_key)
+supabase: Client = create_client(settings.supabase_url, settings.supabase_service_key)
 
 # Dependency pour FastAPI
 async def get_db():

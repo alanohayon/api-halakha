@@ -3,34 +3,28 @@ from typing import Optional, List
 from app.schemas.base import BaseResponse
 
 
-class HalakhaNotionInputBrut(BaseModel):
-    """
-        Schéma pour recevoir le texte complet de la halakha à traiter (avec OpenAI).
-        content: Le texte complet de la halakha à traiter.
-        schedule_days: Nombre de jours à ajouter pour la date de publication sur Notion.
-    """
-    content: str = Field(..., min_length=50, description="Le texte complet de la halakha à traiter.")
-    schedule_days: int = Field(0, description="Nombre de jours à ajouter pour la date de publication sur Notion.")
-
-
 class HalakhaNotionPost(BaseModel):
     """
-        Schéma de la réponse au client après le traitement de la halakha.
-        status: Le statut du traitement.
-        message: Le message de réponse.
-        notion_page_url: L'URL de la page Notion créée.
+    Schéma de la réponse au client après le traitement de la halakha.
+    
+    Attributes:
+        status (str): Le statut du traitement
+        message (str): Le message de réponse
+        notion_page_url (str): L'URL de la page Notion créée
     """
     model_config = ConfigDict(from_attributes=True)
     
-    status: str = "success"
-    message: str = "La halakha a été traitée et publiée avec succès."
-    notion_page_url: str = Field(..., description="L'URL de la page Notion créée.")
+    status: str = Field(default="success", description="Statut du traitement")
+    message: str = Field(default="La halakha a été traitée et publiée avec succès.", description="Message de confirmation")
+    notion_page_url: str = Field(..., description="L'URL de la page Notion créée")
    
     
 class HalakhaInputBrut(BaseModel):
     """
-        Schéma pour recevoir le texte complet de la halakha à traiter (avec OpenAI).
-        content: Le texte complet de la halakha à traiter.
+    Schéma pour recevoir le texte complet de la halakha à traiter (avec OpenAI).
+    
+    Attributes:
+        content (str): Le texte complet de la halakha à traiter
     """
     content: str = Field(..., min_length=50, description="Contenu de la halakha à traiter")
 

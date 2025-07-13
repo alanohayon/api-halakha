@@ -62,7 +62,7 @@ class OpenAIService:
             logger.error(f"Erreur OpenAI lors de la création du thread/run : {e}")
             raise RuntimeError(f"Erreur OpenAI lors de la création du thread/run : {e}")
         except Exception as e:
-            raise RuntimeError(f"Erreur inattendue lors de la création du thread : {e}")
+            return e
 
     async def _cancel_run(self, thread_id: str, run_id: str):
         """Annule un run en cours"""
