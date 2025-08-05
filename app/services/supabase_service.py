@@ -311,31 +311,31 @@ class SupabaseService:
     @measure_execution_time("Recherche d'une halakha Supabase")
     async def search_halakhot(self, 
                              search: Optional[str] = None,
-                             theme: Optional[str] = None, 
-                             tag: Optional[str] = None,
-                             author: Optional[str] = None,
-                             difficulty_level: Optional[int] = None,
                              skip: int = 0,
                              limit: int = 100) -> List[Dict]:
         """
         Recherche avancée des halakhot avec filtres et pagination
         """
-        query = self.client.table('halakhot').select('*')
-        
-        # Recherche textuelle dans le titre et le contenu
-        if search:
-            # Utiliser OR pour chercher dans title ET content
-            query = query.or_(f'content.ilike.%{search}%')
-        
-        # Filtrer par niveau de difficulté
-        if difficulty_level:
-            query = query.eq('difficulty_level', difficulty_level)
-        
-        # TODO: Implémenter les filtres par theme, tag et author avec des jointures
-        # Ces filtres nécessitent des jointures complexes avec les tables de relations
-        
-        response = query.range(skip, skip + limit - 1).execute()
-        return response.data
+        try:
+            query = self.client.table('halakhot').select('*')
+            
+            # Recherche textuelle dans le titre ET le contenu
+            if search:
+                # Recherche sur le titre ou le contenu (OR logique)
+                query = query.or_(
+                    f"title.ilike.%{search}%,content.ilike.%{search}%"
+                )
+            
+            response = query.range(skip, skip + limit - 1).execute()
+            if hasattr(response, "error") and response.error:
+                raise map_supabase_error({"message": str(response.error)}, "Recherche des halakhot")
+            return response.data if response.data else []
+        except SupabaseException as e:
+            logger.error(f"SupabaseException search_halakhot: {e}")
+            raise map_supabase_error({"message": str(e)}, "Recherche des halakhot")
+        except Exception as e:
+            logger.error(f"Exception search_halakhot: {e}")
+            raise DatabaseError(f"Erreur lors de la recherche des halakhot: {e}")
 
     # async def get_halakha_sources(self, halakha_id: int) -> List[Dict]:
     #     """Récupérer toutes les sources associées à une halakha"""

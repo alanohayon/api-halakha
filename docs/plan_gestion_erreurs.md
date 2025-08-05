@@ -14,7 +14,7 @@ Mise en place d'un système homogène de gestion des exceptions afin de sécuris
   - [x] NotionService : lever `NotionServiceError` au lieu de `RuntimeError`
   - [x] OpenAIService : lever `OpenAIServiceError` au lieu d'exceptions génériques
   - [x] SupabaseService : utiliser `map_supabase_error` et lever des exceptions custom
-- [x] Harmonisation de la structure des services et injection de dépendances
+  - [x] Harmonisation de la structure des services et injection de dépendances
   - [x] Création des dépendances injectées dans `app/api/deps.py` (OpenAIServiceDep, NotionServiceDep, SupabaseServiceDep, ProcessingServiceDep)
   - [x] Refactorisation de `ProcessingService` pour accepter les services en paramètres optionnels
   - [x] Harmonisation de tous les endpoints SupabaseService (halakhot, sources, tags, themes)

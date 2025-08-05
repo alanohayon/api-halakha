@@ -2,8 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from supabase import Client
 from typing import List, Optional
 
-from app.core.database import get_supabase
-from app.services.supabase_service import SupabaseService
+
 from app.api.deps import SupabaseServiceDep
 from app.schemas.halakha import HalakhaAnalyseOpenAi
 
@@ -27,10 +26,6 @@ async def list_halakhot(
     page: int = Query(1, ge=1, description="Numéro de la page"),
     limit: int = Query(20, ge=1, le=100, description="Nombre d'éléments par page"),
     search: Optional[str] = Query(None, description="Recherche dans le titre et le contenu"),
-    theme: Optional[str] = Query(None, description="Filtrer par thème"),
-    tag: Optional[str] = Query(None, description="Filtrer par tag"),
-    author: Optional[str] = Query(None, description="Filtrer par auteur/source"),
-    difficulty_level: Optional[int] = Query(None, ge=1, le=5, description="Filtrer par niveau de difficulté")
 ):
     """
     Lister les halakhot avec pagination et filtres avancés
@@ -45,10 +40,6 @@ async def list_halakhot(
     
     return await service.search_halakhot(
         search=search,
-        theme=theme,
-        tag=tag,
-        author=author,
-        difficulty_level=difficulty_level,
         skip=skip,
         limit=limit
     )
@@ -101,18 +92,17 @@ async def replace_halakha(
 @router.patch("/{halakha_id}")
 async def update_halakha_partial(
     halakha_id: int,
+    service: SupabaseServiceDep,
     title: Optional[str] = None,
     question: Optional[str] = None,
     answer: Optional[str] = None,
-    difficulty_level: Optional[int] = None,
-    supabase: Client = Depends(get_supabase)
+    difficulty_level: Optional[int] = None
 ):
     """
     Mise à jour partielle d'une halakha
     
     Permet de modifier uniquement les champs spécifiés sans affecter les autres.
     """
-    service = SupabaseService(supabase)
     
     # Vérifier que la halakha existe
     existing_halakha = await service.get_halakha_by_id(halakha_id)
@@ -155,10 +145,9 @@ async def update_halakha_partial(
 @router.delete("/{halakha_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_halakha(
     halakha_id: int,
-    supabase: Client = Depends(get_supabase)
+    service: SupabaseServiceDep
 ):
     """Supprimer une halakha"""
-    service = SupabaseService(supabase)
     success = await service.delete_halakha(halakha_id)
     if not success:
         raise HTTPException(
@@ -166,23 +155,158 @@ async def delete_halakha(
             detail="Halakha not found"
         )
 
-# SUB-RESOURCE - Récupérer les sources d'une halakha
-@router.get("/{halakha_id}/sources")
-async def get_halakha_sources(
-    halakha_id: int,
-    supabase: Client = Depends(get_supabase)
+# ============================================================================
+# SOURCES - CRUD Operations
+# ============================================================================
+
+# READ - Lister toutes les sources
+@router.get("/sources/", response_model=List[dict])
+async def list_sources(
+    service: SupabaseServiceDep,
+    skip: int = Query(0, ge=0, description="Nombre d'éléments à ignorer"),
+    limit: int = Query(100, ge=1, le=1000, description="Nombre maximum d'éléments à retourner"),
+    name: Optional[str] = Query(None, description="Filtrer par nom de source")
 ):
-    """Récupérer toutes les sources associées à une halakha"""
-    service = SupabaseService(supabase)
-    
-    # Vérifier que la halakha existe
-    halakha = await service.get_halakha_by_id(halakha_id)
-    if not halakha:
+    """Lister toutes les sources avec pagination et filtres"""
+    return await service.get_sources(skip=skip, limit=limit, name=name)
+
+# READ - Récupérer une source spécifique
+@router.get("/sources/{source_id}")
+async def get_source(
+    source_id: int,
+    service: SupabaseServiceDep
+):
+    """Récupérer une source par ID"""
+    source = await service.get_source_by_id(source_id)
+    if not source:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Halakha not found"
+            detail="Source not found"
+        )
+    return source
+
+# READ - Récupérer toutes les halakhot associées à une source
+@router.get("/sources/{source_id}/halakhot")
+async def get_source_halakhot(
+    source_id: int,
+    service: SupabaseServiceDep,
+    skip: int = Query(0, ge=0, description="Nombre d'éléments à ignorer"),
+    limit: int = Query(100, ge=1, le=1000, description="Nombre maximum d'éléments à retourner")
+):
+    """Récupérer toutes les halakhot associées à une source"""
+    
+    # Vérifier que la source existe
+    source = await service.get_source_by_id(source_id)
+    if not source:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Source not found"
         )
     
-    # Récupérer les sources
-    sources = await service.get_halakha_sources(halakha_id)
-    return sources
+    # Récupérer les halakhot
+    halakhot = await service.get_halakhot_by_source(source_id, skip=skip, limit=limit)
+    return halakhot
+
+# ============================================================================
+# TAGS - CRUD Operations
+# ============================================================================
+
+# READ - Lister tous les tags
+@router.get("/tags/", response_model=List[dict])
+async def list_tags(
+    service: SupabaseServiceDep,
+    skip: int = Query(0, ge=0, description="Nombre d'éléments à ignorer"),
+    limit: int = Query(100, ge=1, le=1000, description="Nombre maximum d'éléments à retourner"),
+    name: Optional[str] = Query(None, description="Filtrer par nom de tag")
+):
+    """Lister tous les tags avec pagination et filtres"""
+    return await service.get_tags(skip=skip, limit=limit, name=name)
+
+# READ - Récupérer un tag spécifique
+@router.get("/tags/{tag_id}")
+async def get_tag(
+    tag_id: int,
+    service: SupabaseServiceDep
+):
+    """Récupérer un tag par ID"""
+    tag = await service.get_tag_by_id(tag_id)
+    if not tag:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Tag not found"
+        )
+    return tag
+
+# READ - Récupérer toutes les halakhot associées à un tag
+@router.get("/tags/{tag_id}/halakhot")
+async def get_tag_halakhot(
+    tag_id: int,
+    service: SupabaseServiceDep,
+    skip: int = Query(0, ge=0, description="Nombre d'éléments à ignorer"),
+    limit: int = Query(100, ge=1, le=1000, description="Nombre maximum d'éléments à retourner")
+):
+    """Récupérer toutes les halakhot associées à un tag"""
+    
+    # Vérifier que le tag existe
+    tag = await service.get_tag_by_id(tag_id)
+    if not tag:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Tag not found"
+        )
+    
+    # Récupérer les halakhot
+    halakhot = await service.get_halakhot_by_tag(tag_id, skip=skip, limit=limit)
+    return halakhot
+
+# ============================================================================
+# THEMES - CRUD Operations
+# ============================================================================
+
+# READ - Lister tous les thèmes
+@router.get("/themes/", response_model=List[dict])
+async def list_themes(
+    service: SupabaseServiceDep,
+    skip: int = Query(0, ge=0, description="Nombre d'éléments à ignorer"),
+    limit: int = Query(100, ge=1, le=1000, description="Nombre maximum d'éléments à retourner"),
+    name: Optional[str] = Query(None, description="Filtrer par nom de thème")
+):
+    """Lister tous les thèmes avec pagination et filtres"""
+    return await service.get_themes(skip=skip, limit=limit, name=name)
+
+# READ - Récupérer un thème spécifique
+@router.get("/themes/{theme_id}")
+async def get_theme(
+    theme_id: int,
+    service: SupabaseServiceDep
+):
+    """Récupérer un thème par ID"""
+    theme = await service.get_theme_by_id(theme_id)
+    if not theme:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Theme not found"
+        )
+    return theme
+
+# READ - Récupérer toutes les halakhot associées à un thème
+@router.get("/themes/{theme_id}/halakhot")
+async def get_theme_halakhot(
+    theme_id: int,
+    service: SupabaseServiceDep,
+    skip: int = Query(0, ge=0, description="Nombre d'éléments à ignorer"),
+    limit: int = Query(100, ge=1, le=1000, description="Nombre maximum d'éléments à retourner")
+):
+    """Récupérer toutes les halakhot associées à un thème"""
+    
+    # Vérifier que le thème existe
+    theme = await service.get_theme_by_id(theme_id)
+    if not theme:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Theme not found"
+        )
+    
+    # Récupérer les halakhot
+    halakhot = await service.get_halakhot_by_theme(theme_id, skip=skip, limit=limit)
+    return halakhot
