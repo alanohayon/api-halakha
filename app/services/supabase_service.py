@@ -22,7 +22,15 @@ class SupabaseService:
         supabase_client = get_supabase()
         settings = get_settings()
         
-        self.client = supabase_client
+        try:
+            self.client = supabase_client
+        except SupabaseException as e:
+            logger.error(f"Erreur lors de l'initialisation du client Supabase : {e}")
+            raise SupabaseServiceException(f"Erreur lors de l'initialisation du client Supabase: {e}")
+        except Exception as e:
+            logger.error(f"Erreur inattendue lors de l'initialisation du client Supabase : {e}")
+            raise SupabaseServiceException(f"Erreur inattendue lors de l'initialisation du client Supabase: {e}")
+        
         self.settings = settings
     
     # ============================================================================
@@ -304,6 +312,9 @@ class SupabaseService:
             
             return len(response.data) > 0
             
+        except SupabaseException as e:
+            logger.error(f"SupabaseException delete_halakha: {e}")
+            raise map_supabase_error({"message": str(e)}, "Suppression de la halakha")
         except Exception as e:
             print(f"Erreur lors de la suppression de la halakha: {e}")
             return False

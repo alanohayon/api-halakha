@@ -27,7 +27,14 @@ class NotionService:
             raise NotionServiceError("Configuration Notion manquante (token ou database_id)", status_code=500)
         
         self.settings = settings
-        self.notion = Client(auth=self.settings.notion_api_token)
+        try:
+            self.notion = Client(auth=self.settings.notion_api_token)
+        except APIResponseError as e:
+            logger.error(f"Erreur de l'API Notion lors de l'initialisation du client : {e.code} - {e.body}")
+            raise NotionServiceError(f"Erreur API Notion: {e.body}")
+        except Exception as e:
+            logger.error(f"Erreur inattendue lors de l'initialisation du client Notion : {e}")
+            raise NotionServiceError(f"Erreur inattendue lors de l'initialisation du client Notion: {e}")
 
     @measure_execution_time("Création d'une page Notion simple")
     async def create_page(self, title: str, content: str) -> str:
@@ -126,9 +133,12 @@ class NotionService:
             logger.info(f"Synchronisation terminée. {len(created_pages)} pages créées.")
             return created_pages
             
+        except APIResponseError as e:
+            logger.error(f"Erreur de l'API Notion lors de la synchronisation : {e.code} - {e.body}")
+            raise NotionServiceError(f"Erreur API Notion lors de la synchronisation: {e.body}")
         except Exception as e:
-            logger.error(f"Erreur lors de la synchronisation des halakhot : {e}")
-            raise NotionServiceError(f"Erreur lors de la synchronisation des halakhot: {e}")
+            logger.error(f"Erreur inattendue lors de la synchronisation des halakhot : {e}")
+            raise NotionServiceError(f"Erreur inattendue lors de la synchronisation des halakhot: {e}")
 
     async def _build_page_properties(self, processed_data: dict, add_day: int, image_url: str = None, status: str = NotionStatus.INPROGRESS) -> dict:
         """
@@ -163,14 +173,6 @@ class NotionService:
                     content = content[:1900] + "..."
                 
                 properties[key] = {"rich_text": [{"text": {"content": content}}]}
-
-        # # Ajout de l'image si disponible
-        # try:
-        #     supabase_service = SupabaseService()
-        #     image_url = await supabase_service.get_last_img_supabase()
-        # except Exception as e:
-        #     logger.error(f"Erreur lors de la récupération de l'image : {e}")
-        #     image_url = None
             
         if image_url:
             properties["image"] = {

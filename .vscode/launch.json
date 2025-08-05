@@ -5,5 +5,5 @@
     "program": "${file}",
     "console": "integratedTerminal",
     "cwd": "${workspaceFolder}",
-    "python": "${workspaceFolder}/monenv/bin/python"
+    "python": "Users/alanohayon/pyth_env/bin/python"
 }
