@@ -8,17 +8,21 @@ from app.services.supabase_service import SupabaseService
 from ..utils.json_loader import get_halakhot_count, get_halakhot_range, load_halakha_by_index
 from app.core.config import get_settings
 from app.utils.performance import measure_execution_time, measure_with_metadata
+from typing import Optional
 from ..schemas.notion import NotionStatus
 
 logger = structlog.get_logger()
 
 class ProcessingService:
-    def __init__(self):
+    def __init__(self, 
+                 supabase_service: Optional[SupabaseService] = None,
+                 openai_service: Optional[OpenAIService] = None,
+                 notion_service: Optional[NotionService] = None):
         settings = get_settings()
-        self.supabase_service = SupabaseService()
         self.settings = settings
-        self.openai_service = OpenAIService()
-        self.notion_service = NotionService()
+        self.supabase_service = supabase_service or SupabaseService()
+        self.openai_service = openai_service or OpenAIService()
+        self.notion_service = notion_service or NotionService()
 
     # ===========================================
     # 🚀 MÉTHODES PRINCIPALES (API PUBLIQUE)

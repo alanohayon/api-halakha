@@ -4,6 +4,7 @@ from typing import List, Optional
 
 from app.core.database import get_supabase
 from app.services.supabase_service import SupabaseService
+from app.api.deps import SupabaseServiceDep
 from app.schemas.halakha import HalakhaAnalyseOpenAi
 
 router = APIRouter()
@@ -12,10 +13,9 @@ router = APIRouter()
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_halakha(
     halakha_data: HalakhaAnalyseOpenAi,
-    supabase: Client = Depends(get_supabase)
+    service_supabase: SupabaseServiceDep
 ):
     """Créer une nouvelle halakha avec toutes ses données structurées"""
-    service_supabase = SupabaseService(supabase)
     # Convertir le modèle Pydantic en dictionnaire pour le service
     halakha_dict = halakha_data.model_dump()
     return await service_supabase.create_halakha(halakha_dict)
@@ -23,14 +23,14 @@ async def create_halakha(
 # READ - Lister toutes les halakhot avec pagination et recherche
 @router.get("/", response_model=List[dict])
 async def list_halakhot(
+    service: SupabaseServiceDep,
     page: int = Query(1, ge=1, description="Numéro de la page"),
     limit: int = Query(20, ge=1, le=100, description="Nombre d'éléments par page"),
     search: Optional[str] = Query(None, description="Recherche dans le titre et le contenu"),
     theme: Optional[str] = Query(None, description="Filtrer par thème"),
     tag: Optional[str] = Query(None, description="Filtrer par tag"),
     author: Optional[str] = Query(None, description="Filtrer par auteur/source"),
-    difficulty_level: Optional[int] = Query(None, ge=1, le=5, description="Filtrer par niveau de difficulté"),
-    supabase: Client = Depends(get_supabase)
+    difficulty_level: Optional[int] = Query(None, ge=1, le=5, description="Filtrer par niveau de difficulté")
 ):
     """
     Lister les halakhot avec pagination et filtres avancés
@@ -41,7 +41,6 @@ async def list_halakhot(
     - GET /halakhot?theme=fêtes&tag=vin
     - GET /halakhot?author=Choulhan%20Aroukh
     """
-    service = SupabaseService(supabase)
     skip = (page - 1) * limit
     
     return await service.search_halakhot(
@@ -58,10 +57,9 @@ async def list_halakhot(
 @router.get("/{halakha_id}")
 async def get_halakha(
     halakha_id: int,
-    supabase: Client = Depends(get_supabase)
+    service: SupabaseServiceDep
 ):
     """Récupérer une halakha par ID"""
-    service = SupabaseService(supabase)
     halakha = await service.get_halakha_by_id(halakha_id)
     if not halakha:
         raise HTTPException(
@@ -75,10 +73,9 @@ async def get_halakha(
 async def replace_halakha(
     halakha_id: int,
     halakha_data: HalakhaAnalyseOpenAi,
-    supabase: Client = Depends(get_supabase)
+    service_supabase: SupabaseServiceDep
 ):
     """Remplacer complètement une halakha existante"""
-    service_supabase = SupabaseService(supabase)
     
     # Vérifier que la halakha existe
     existing_halakha = await service_supabase.get_halakha_by_id(halakha_id)

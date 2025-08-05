@@ -5,6 +5,7 @@ from typing import List, Dict, Any
 from app.core.config import get_settings
 from app.core.database import get_supabase
 from app.utils.performance import measure_execution_time
+from app.core.exceptions import NotionServiceError
 import os
 from app.services.supabase_service import SupabaseService
 
@@ -23,7 +24,7 @@ class NotionService:
     def __init__(self):
         settings = get_settings()
         if not settings.notion_api_token or not settings.notion_database_id_post_halakha:
-            raise ValueError("Les configurations Notion (token et ID de base de données) sont requises.")
+            raise NotionServiceError("Configuration Notion manquante (token ou database_id)", status_code=500)
         
         self.settings = settings
         self.notion = Client(auth=self.settings.notion_api_token)
@@ -69,10 +70,10 @@ class NotionService:
             
         except APIResponseError as e:
             logger.error(f"Erreur de l'API Notion lors de la création de la page : {e.code} - {e.body}")
-            raise RuntimeError(f"Erreur API Notion: {e.body}")
+            raise NotionServiceError(f"Erreur API Notion: {e.body}")
         except Exception as e:
             logger.error(f"Erreur inattendue lors de la création de la page Notion : {e}")
-            raise RuntimeError(f"Erreur inattendue lors de la création de la page Notion: {e}")
+            raise NotionServiceError(f"Erreur inattendue lors de la création de la page Notion: {e}")
 
     @measure_execution_time("Récupération d'une page Notion")
     async def get_page(self, page_id: str) -> Dict[str, Any]:
@@ -93,10 +94,10 @@ class NotionService:
             
         except APIResponseError as e:
             logger.error(f"Erreur de l'API Notion lors de la récupération de la page : {e.code} - {e.body}")
-            raise RuntimeError(f"Erreur API Notion: {e.body}")
+            raise NotionServiceError(f"Erreur API Notion: {e.body}")
         except Exception as e:
             logger.error(f"Erreur inattendue lors de la récupération de la page Notion : {e}")
-            raise RuntimeError(f"Erreur inattendue lors de la récupération de la page Notion: {e}")
+            raise NotionServiceError(f"Erreur inattendue lors de la récupération de la page Notion: {e}")
 
     @measure_execution_time("Synchronisation des halakhot vers Notion")
     async def sync_halakhot(self, halakha_ids: List[int]) -> List[str]:
@@ -127,7 +128,7 @@ class NotionService:
             
         except Exception as e:
             logger.error(f"Erreur lors de la synchronisation des halakhot : {e}")
-            raise RuntimeError(f"Erreur lors de la synchronisation des halakhot: {e}")
+            raise NotionServiceError(f"Erreur lors de la synchronisation des halakhot: {e}")
 
     async def _build_page_properties(self, processed_data: dict, add_day: int, image_url: str = None, status: str = NotionStatus.INPROGRESS) -> dict:
         """
@@ -222,7 +223,7 @@ class NotionService:
             
         except APIResponseError as e:
             logger.error(f"Erreur de l'API Notion lors de la création de la page : {e.code} - {e.body}")
-            raise RuntimeError(f"Erreur API Notion: {e.body}")
+            raise NotionServiceError(f"Erreur API Notion: {e.body}")
         except Exception as e:
             logger.error(f"Erreur inattendue lors de la création de la page Notion : {e}")
-            raise RuntimeError(f"Erreur inattendue lors de la création de la page Notion: {e}")
+            raise NotionServiceError(f"Erreur inattendue lors de la création de la page Notion: {e}")

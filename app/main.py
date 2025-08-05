@@ -1,9 +1,15 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
+from app.core.logging import configure_logging
+from app.core.exceptions import HalakhaAPIException
 from app.api.v1.router import api_router
+
+# Initialiser le logging structuré dès le démarrage
+configure_logging()
 
 # Configuration de sécurité pour Swagger (optionnel)
 security = HTTPBearer()
@@ -106,3 +112,15 @@ async def admin_info():
 
 # Inclure les routes API v1
 app.include_router(api_router, prefix="/api/v1")
+
+# Gestion globale des exceptions personnalisées
+@app.exception_handler(HalakhaAPIException)
+async def halakha_api_exception_handler(request: Request, exc: HalakhaAPIException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "error": getattr(exc, "code", exc.__class__.__name__.upper()),
+            "message": exc.message,
+            "details": exc.details,
+        },
+    )

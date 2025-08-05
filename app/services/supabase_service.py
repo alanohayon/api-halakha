@@ -6,6 +6,12 @@ from app.utils.performance import measure_execution_time
 from app.core.config import get_settings
 from app.core.database import get_supabase
 from app.utils.image_utils import get_clean_filename
+from app.core.exceptions import (
+    map_supabase_error, 
+    SupabaseServiceException, 
+    SupabaseNotFoundException,
+    DatabaseError
+)
 
 
 
@@ -36,10 +42,10 @@ class SupabaseService:
             return response.data
         except SupabaseException as e:
             logger.error(f"SupabaseException get_halakhot: {e}")
-            return None
+            raise map_supabase_error({"message": str(e)}, "Récupération des halakhot")
         except Exception as e:
             logger.error(f"Exception get_halakhot: {e}")
-            return None
+            raise DatabaseError(f"Erreur lors de la récupération des halakhot: {e}")
     
     async def get_halakha_by_id(self, halakha_id: int) -> Optional[Dict]:
         """Récupérer une halakha par ID"""
@@ -53,10 +59,10 @@ class SupabaseService:
             return response.data[0] if response.data else None
         except SupabaseException as e:
             logger.error(f"SupabaseException get_halakha_by_id: {e}")
-            return None
+            raise map_supabase_error({"message": str(e)}, f"Récupération de la halakha {halakha_id}")
         except Exception as e:
             logger.error(f"Exception get_halakha_by_id: {e}")
-            return None
+            raise DatabaseError(f"Erreur lors de la récupération de la halakha {halakha_id}: {e}")
     
     @measure_execution_time("Création d'une halakha Supabase")
     async def create_halakha(self, halakha_data: Dict) -> Optional[Dict]:
@@ -254,10 +260,10 @@ class SupabaseService:
             }
         except SupabaseException as e:
             logger.error(f"SupabaseException create_halakha: {e}")
-            return str(e)
+            raise map_supabase_error({"message": str(e)}, "Création de la halakha")
         except Exception as e:
             logger.error(f"Exception create_halakha: {e}")
-            return str(e)
+            raise DatabaseError(f"Erreur lors de la création de la halakha: {e}")
 
     async def update_halakha(self, halakha_id: int, updates: Dict) -> Dict:
         """Mettre à jour une halakha existante"""
@@ -302,34 +308,34 @@ class SupabaseService:
             print(f"Erreur lors de la suppression de la halakha: {e}")
             return False
 
-    # @measure_execution_time("Recherche d'une halakha Supabase")
-    # async def search_halakhot(self, 
-    #                          search: Optional[str] = None,
-    #                          theme: Optional[str] = None, 
-    #                          tag: Optional[str] = None,
-    #                          author: Optional[str] = None,
-    #                          difficulty_level: Optional[int] = None,
-    #                          skip: int = 0,
-    #                          limit: int = 100) -> List[Dict]:
-    #     """
-    #     Recherche avancée des halakhot avec filtres et pagination
-    #     """
-    #     query = self.client.table('halakhot').select('*')
+    @measure_execution_time("Recherche d'une halakha Supabase")
+    async def search_halakhot(self, 
+                             search: Optional[str] = None,
+                             theme: Optional[str] = None, 
+                             tag: Optional[str] = None,
+                             author: Optional[str] = None,
+                             difficulty_level: Optional[int] = None,
+                             skip: int = 0,
+                             limit: int = 100) -> List[Dict]:
+        """
+        Recherche avancée des halakhot avec filtres et pagination
+        """
+        query = self.client.table('halakhot').select('*')
         
-    #     # Recherche textuelle dans le titre et le contenu
-    #     if search:
-    #         # Utiliser OR pour chercher dans title ET content
-    #         query = query.or_(f'title.ilike.%{search}%,content.ilike.%{search}%')
+        # Recherche textuelle dans le titre et le contenu
+        if search:
+            # Utiliser OR pour chercher dans title ET content
+            query = query.or_(f'content.ilike.%{search}%')
         
-    #     # Filtrer par niveau de difficulté
-    #     if difficulty_level:
-    #         query = query.eq('difficulty_level', difficulty_level)
+        # Filtrer par niveau de difficulté
+        if difficulty_level:
+            query = query.eq('difficulty_level', difficulty_level)
         
-    #     # TODO: Implémenter les filtres par theme, tag et author avec des jointures
-    #     # Ces filtres nécessitent des jointures complexes avec les tables de relations
+        # TODO: Implémenter les filtres par theme, tag et author avec des jointures
+        # Ces filtres nécessitent des jointures complexes avec les tables de relations
         
-    #     response = query.range(skip, skip + limit - 1).execute()
-    #     return response.data
+        response = query.range(skip, skip + limit - 1).execute()
+        return response.data
 
     # async def get_halakha_sources(self, halakha_id: int) -> List[Dict]:
     #     """Récupérer toutes les sources associées à une halakha"""

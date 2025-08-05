@@ -5,6 +5,7 @@ import asyncio
 from openai import OpenAI, OpenAIError, APITimeoutError, RateLimitError, APIConnectionError
 from app.core.config import get_settings
 from app.utils.performance import measure_execution_time, measure_with_metadata
+from app.core.exceptions import OpenAIServiceError
 
 
 # Configure logging
@@ -15,7 +16,7 @@ class OpenAIService:
     def __init__(self):
         settings = get_settings()
         if not settings.openai_api_key:
-            raise ValueError("La clé API OpenAI n'est pas configurée.")
+            raise OpenAIServiceError("Configuration OpenAI manquante (clé API)", status_code=500)
         
         self.settings = settings
         try:
@@ -26,7 +27,7 @@ class OpenAIService:
             )
         except OpenAIError as e:
             logger.error(f"Erreur OpenAI lors de l'initialisation du client : {e}")
-            raise RuntimeError(f"Erreur OpenAI lors de l'initialisation du client : {e}") from e
+            raise OpenAIServiceError(f"Erreur OpenAI lors de l'initialisation du client : {e}") from e
         except Exception as e:
             logger.error("Erreur inattendue lors de l'initialisation du client", error=str(e))
             raise
@@ -53,14 +54,14 @@ class OpenAIService:
             return thread_run
             
         except RateLimitError as e:
-            raise RuntimeError(f"Erreur de limite de taux : {e}")
+            raise OpenAIServiceError(f"Erreur de limite de taux : {e}")
         except APITimeoutError as e:
-            raise RuntimeError(f"Erreur de délai d'attente : {e}")
+            raise OpenAIServiceError(f"Erreur de délai d'attente : {e}")
         except APIConnectionError as e:
-            raise RuntimeError(f"Erreur de connexion lors de la génération de l'image : {e}")
+            raise OpenAIServiceError(f"Erreur de connexion lors de la génération de l'image : {e}")
         except OpenAIError as e:
             logger.error(f"Erreur OpenAI lors de la création du thread/run : {e}")
-            raise RuntimeError(f"Erreur OpenAI lors de la création du thread/run : {e}")
+            raise OpenAIServiceError(f"Erreur OpenAI lors de la création du thread/run : {e}")
         except Exception as e:
             return e
 
@@ -137,7 +138,7 @@ class OpenAIService:
             
         except OpenAIError as e:
             logger.error(f"Erreur OpenAI lors de la soumission des sorties : {e}")
-            raise RuntimeError(f"Erreur lors de la soumission des sorties : {e}")
+            raise OpenAIServiceError(f"Erreur lors de la soumission des sorties : {e}")
         except Exception as e:
             logger.error(f"Erreur inattendue lors de la soumission : {e}")
             raise
@@ -169,20 +170,20 @@ class OpenAIService:
             messages = self.client.beta.threads.messages.list(thread_id=run.thread_id)
             if not messages.data or not messages.data[0].content or not messages.data[0].content[0].text.value:
                 logger.error("Réponse vide de l'assistant.")
-                raise RuntimeError("Réponse vide de l'assistant.")
+                raise OpenAIServiceError("Réponse vide de l'assistant.")
             return messages.data[0].content[0].text.value
         elif run.status == "failed":
             logger.error(f"Le Run a échoué : {run.last_error}")
-            raise RuntimeError(f"Le Run a échoué : {run.last_error}")
+            raise OpenAIServiceError(f"Le Run a échoué : {run.last_error}")
         elif run.status == "cancelled":
             logger.error("Le Run a été annulé (timeout ou annulation manuelle).")
-            raise RuntimeError("Le Run a été annulé (timeout ou annulation manuelle).")
+            raise OpenAIServiceError("Le Run a été annulé (timeout ou annulation manuelle).")
         elif run.status == "expired":
             logger.error("Le Run a expiré (OpenAI n'a pas répondu à temps).")
-            raise RuntimeError("Le Run a expiré (OpenAI n'a pas répondu à temps).")
+            raise OpenAIServiceError("Le Run a expiré (OpenAI n'a pas répondu à temps).")
         else:
             logger.error(f"Le Run s'est terminé avec un statut inattendu : {run.status}")
-            raise RuntimeError(f"Le Run s'est terminé avec un statut inattendu : {run.status}")
+            raise OpenAIServiceError(f"Le Run s'est terminé avec un statut inattendu : {run.status}")
 
     async def _query_assistant(self, input_msg: str, asst) -> str:
         try:
@@ -212,7 +213,7 @@ class OpenAIService:
             return processed_data
         except json.JSONDecodeError as e:
             logger.error(f"Erreur de décodage JSON de la réponse OpenAI : {e}")
-            raise RuntimeError(f"Réponse invalide de l'assistant de structuration : {e}")
+            raise OpenAIServiceError(f"Réponse invalide de l'assistant de structuration : {e}")
         except Exception as e:
             logger.error(f"Erreur lors du traitement de la halakha par OpenAI : {e}")
             raise
@@ -258,4 +259,4 @@ class OpenAIService:
     #         return image_url
     #     except OpenAIError as e:
     #         logger.error(f"Erreur OpenAI lors de la génération de l'image : {e}")
-    #         raise RuntimeError(f"Erreur OpenAI lors de la génération de l'image : {e}")
+    #         raise OpenAIServiceError(f"Erreur OpenAI lors de la génération de l'image : {e}")

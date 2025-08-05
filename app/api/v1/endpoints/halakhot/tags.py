@@ -4,29 +4,28 @@ from typing import List, Optional
 
 from app.core.database import get_supabase
 from app.services.supabase_service import SupabaseService
+from app.api.deps import SupabaseServiceDep
 
 router = APIRouter()
 
 # READ - Lister tous les tags
 @router.get("/", response_model=List[dict])
 async def list_tags(
+    service: SupabaseServiceDep,
     skip: int = Query(0, ge=0, description="Nombre d'éléments à ignorer"),
     limit: int = Query(100, ge=1, le=1000, description="Nombre maximum d'éléments à retourner"),
-    name: Optional[str] = Query(None, description="Filtrer par nom de tag"),
-    supabase: Client = Depends(get_supabase)
+    name: Optional[str] = Query(None, description="Filtrer par nom de tag")
 ):
     """Lister tous les tags avec pagination et filtres"""
-    service = SupabaseService(supabase)
     return await service.get_tags(skip=skip, limit=limit, name=name)
 
 # READ - Récupérer un tag spécifique
 @router.get("/{tag_id}")
 async def get_tag(
     tag_id: int,
-    supabase: Client = Depends(get_supabase)
+    service: SupabaseServiceDep
 ):
     """Récupérer un tag par ID"""
-    service = SupabaseService(supabase)
     tag = await service.get_tag_by_id(tag_id)
     if not tag:
         raise HTTPException(
@@ -39,12 +38,11 @@ async def get_tag(
 @router.get("/{tag_id}/halakhot")
 async def get_tag_halakhot(
     tag_id: int,
+    service: SupabaseServiceDep,
     skip: int = Query(0, ge=0, description="Nombre d'éléments à ignorer"),
-    limit: int = Query(100, ge=1, le=1000, description="Nombre maximum d'éléments à retourner"),
-    supabase: Client = Depends(get_supabase)
+    limit: int = Query(100, ge=1, le=1000, description="Nombre maximum d'éléments à retourner")
 ):
     """Récupérer toutes les halakhot associées à un tag"""
-    service = SupabaseService(supabase)
     
     # Vérifier que le tag existe
     tag = await service.get_tag_by_id(tag_id)

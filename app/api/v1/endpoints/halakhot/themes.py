@@ -4,29 +4,28 @@ from typing import List, Optional
 
 from app.core.database import get_supabase
 from app.services.supabase_service import SupabaseService
+from app.api.deps import SupabaseServiceDep
 
 router = APIRouter()
 
 # READ - Lister tous les thèmes
 @router.get("/", response_model=List[dict])
 async def list_themes(
+    service: SupabaseServiceDep,
     skip: int = Query(0, ge=0, description="Nombre d'éléments à ignorer"),
     limit: int = Query(100, ge=1, le=1000, description="Nombre maximum d'éléments à retourner"),
-    name: Optional[str] = Query(None, description="Filtrer par nom de thème"),
-    supabase: Client = Depends(get_supabase)
+    name: Optional[str] = Query(None, description="Filtrer par nom de thème")
 ):
     """Lister tous les thèmes avec pagination et filtres"""
-    service = SupabaseService(supabase)
     return await service.get_themes(skip=skip, limit=limit, name=name)
 
 # READ - Récupérer un thème spécifique
 @router.get("/{theme_id}")
 async def get_theme(
     theme_id: int,
-    supabase: Client = Depends(get_supabase)
+    service: SupabaseServiceDep
 ):
     """Récupérer un thème par ID"""
-    service = SupabaseService(supabase)
     theme = await service.get_theme_by_id(theme_id)
     if not theme:
         raise HTTPException(
@@ -39,12 +38,11 @@ async def get_theme(
 @router.get("/{theme_id}/halakhot")
 async def get_theme_halakhot(
     theme_id: int,
+    service: SupabaseServiceDep,
     skip: int = Query(0, ge=0, description="Nombre d'éléments à ignorer"),
-    limit: int = Query(100, ge=1, le=1000, description="Nombre maximum d'éléments à retourner"),
-    supabase: Client = Depends(get_supabase)
+    limit: int = Query(100, ge=1, le=1000, description="Nombre maximum d'éléments à retourner")
 ):
     """Récupérer toutes les halakhot associées à un thème"""
-    service = SupabaseService(supabase)
     
     # Vérifier que le thème existe
     theme = await service.get_theme_by_id(theme_id)

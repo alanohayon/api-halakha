@@ -2,31 +2,44 @@ from fastapi import HTTPException, status
 from typing import Optional, Dict, Any
 
 class HalakhaAPIException(Exception):
-    """Base exception for Halakha API"""
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+    """Base exception pour l'API Halakha, convertible en réponse HTTP standardisée."""
+    def __init__(
+        self,
+        message: str,
+        status_code: int = 400,
+        code: Optional[str] = None,
+        details: Optional[Dict[str, Any]] = None,
+    ):
         self.message = message
+        self.status_code = status_code
+        self.code = code or self.__class__.__name__.upper()
         self.details = details or {}
         super().__init__(self.message)
 
 class HalakhaNotFoundError(HalakhaAPIException):
     """Raised when a halakha is not found"""
-    pass
+    def __init__(self, message: str = "Halakha not found", details: Optional[Dict[str, Any]] = None):
+        super().__init__(message, status_code=status.HTTP_404_NOT_FOUND, code="HALAKHA_NOT_FOUND", details=details)
 
 class OpenAIServiceError(HalakhaAPIException):
     """Raised when OpenAI service encounters an error"""
-    pass
+    def __init__(self, message: str, status_code: int = 503, details: Optional[Dict[str, Any]] = None):
+        super().__init__(message, status_code=status_code, code="OPENAI_SERVICE_ERROR", details=details)
 
 class NotionServiceError(HalakhaAPIException):
     """Raised when Notion service encounters an error"""
-    pass
+    def __init__(self, message: str, status_code: int = 503, details: Optional[Dict[str, Any]] = None):
+        super().__init__(message, status_code=status_code, code="NOTION_SERVICE_ERROR", details=details)
 
 class DatabaseError(HalakhaAPIException):
     """Raised when database operations fail"""
-    pass
+    def __init__(self, message: str, status_code: int = 500, details: Optional[Dict[str, Any]] = None):
+        super().__init__(message, status_code=status_code, code="DATABASE_ERROR", details=details)
 
 class ValidationError(HalakhaAPIException):
     """Raised when data validation fails"""
-    pass
+    def __init__(self, message: str, status_code: int = 422, details: Optional[Dict[str, Any]] = None):
+        super().__init__(message, status_code=status_code, code="VALIDATION_ERROR", details=details)
 
 class BaseAPIException(HTTPException):
     """Base exception pour toutes les exceptions de l'API"""
