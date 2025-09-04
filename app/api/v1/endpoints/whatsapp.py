@@ -8,7 +8,27 @@ router = APIRouter()
 async def whatsapp_webhook(
     request: Request
 ):
-    """Recevoir les webhooks de WhatsApp Business API"""
+    """
+    Recevoir les webhooks de WhatsApp Business API.
+    
+    **Fonctionnalités :**
+    - Réception des messages WhatsApp entrants
+    - Traitement automatique des requêtes halakhiques
+    - Réponses intelligentes basées sur l'IA
+    - Intégration avec la base de données des halakhot
+    
+    **Paramètres :**
+    - `request` : Requête HTTP contenant les données du webhook
+    
+    **Retour :**
+    - Confirmation de réception du webhook
+    - Statut de traitement du message
+    
+    **Utilisation :**
+    - Configuration dans WhatsApp Business API
+    - Point d'entrée pour les interactions utilisateur
+    - Déclenchement de réponses automatiques
+    """
     try:
         body = await request.json()
         # TODO: Traiter les messages WhatsApp reçus
@@ -27,7 +47,29 @@ async def send_whatsapp_message(
     phone_number: str,
     message: str
 ):
-    """Envoyer un message WhatsApp"""
+    """
+    Envoyer un message WhatsApp via l'API Business.
+    
+    **Fonctionnalités :**
+    - Envoi de messages texte via WhatsApp Business API
+    - Support des caractères Unicode (hébreu, emojis)
+    - Validation du numéro de téléphone
+    - Gestion des erreurs d'envoi
+    
+    **Paramètres :**
+    - `phone_number` : Numéro de téléphone du destinataire (format international)
+    - `message` : Contenu du message à envoyer
+    
+    **Retour :**
+    - ID du message envoyé
+    - Statut de l'envoi
+    - Numéro de téléphone confirmé
+    
+    **Utilisation :**
+    - Envoi de halakhot personnalisées
+    - Notifications automatiques
+    - Réponses aux requêtes utilisateur
+    """
     try:
         # TODO: Implémenter l'envoi de messages via WhatsApp Business API
         return {

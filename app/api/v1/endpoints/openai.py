@@ -26,9 +26,28 @@ async def query_halakha(
     text: str = Form(..., description="Texte à analyser par OpenAI")
 ):
     """
-    Endpoint pour analyser un texte avec OpenAI.
-    text: Le texte à analyser.
-    Retourne une réponse avec les données de la halakha strcuturées.
+    Analyse un texte halakhique avec OpenAI GPT pour le structurer.
+    
+    **Fonctionnalités :**
+    - Analyse sémantique du contenu avec IA
+    - Extraction automatique des concepts clés
+    - Génération de résumé et de tags pertinents
+    - Structuration des données pour la base de données
+    - Support complet des caractères Unicode (hébreu, emojis)
+    
+    **Paramètres :**
+    - `text` : Texte brut de la halakha à analyser
+    
+    **Retour :**
+    - Données structurées de la halakha
+    - Titre généré automatiquement
+    - Résumé et tags extraits
+    - Métadonnées d'analyse
+    
+    **Utilisation :**
+    - Préprocessing avant sauvegarde en base
+    - Enrichissement de contenu existant
+    - Classification automatique des halakhot
     """
     try:    
         result = await service.queries_halakha(text)

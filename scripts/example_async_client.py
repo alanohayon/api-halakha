@@ -12,10 +12,12 @@ import requests
 import time
 import json
 from typing import Dict, Any
+from app.core.config import get_settings
 
 class HalakhaAPIClient:
     def __init__(self, base_url: str = "http://localhost:8000/api/v1"):
         self.base_url = base_url
+        self.settings = get_settings()
     
     def start_processing(self, halakha_content: str, add_day: int = 0) -> Dict[str, Any]:
         """
@@ -26,7 +28,8 @@ class HalakhaAPIClient:
             params={
                 "halakha_content": halakha_content,
                 "add_day": add_day
-            }
+            },
+            timeout=self.settings.request_timeout
         )
         response.raise_for_status()
         return response.json()
@@ -35,7 +38,10 @@ class HalakhaAPIClient:
         """
         Récupère le statut d'un job
         """
-        response = requests.get(f"{self.base_url}/process/status/{job_id}")
+        response = requests.get(
+            f"{self.base_url}/process/status/{job_id}",
+            timeout=self.settings.request_timeout
+        )
         response.raise_for_status()
         return response.json()
     

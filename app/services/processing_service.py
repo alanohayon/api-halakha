@@ -28,8 +28,8 @@ class ProcessingService:
     # 🚀 MÉTHODES PRINCIPALES (API PUBLIQUE)
     # ===========================================
 
-    @measure_execution_time("process_halakha_complete")
-    async def process_halakha_complete(
+    @measure_execution_time("post_halakha_complete")
+    async def post_halakha_complete(
         self, 
         halakha_content: str, 
         add_day_for_notion: int = 0, 
@@ -91,7 +91,7 @@ class ProcessingService:
             halakha_content = await load_halakha_by_index(json_index)
             
             # Traiter avec la méthode unifiée (sans Supabase pour le JSON)
-            notion_url = await self.process_halakha_complete(
+            notion_url = await self.post_halakha_complete(
                 halakha_content=halakha_content, 
                 add_day_for_notion=schedule_days,
                 save_to_supabase=False  # 🎯 Pas de sauvegarde DB pour JSON
@@ -331,7 +331,7 @@ class ProcessingService:
                     raise ValueError(f"Contenu vide pour la halakha #{index}")
                 
                 # Traitement avec la méthode unifiée
-                notion_url = await self.process_halakha_complete(
+                notion_url = await self.post_halakha_complete(
                     halakha_content=halakha_content,
                     add_day_for_notion=schedule_days,
                     last_image=False  # On ne sauvegarde pas l'image dans Supabase pour les JSON

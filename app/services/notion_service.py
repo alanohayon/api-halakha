@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from datetime import datetime, timedelta
 from notion_client import Client, APIResponseError
 from typing import List, Dict, Any
@@ -66,15 +67,23 @@ class NotionService:
                 }
             ]
             
-            response = self.notion.pages.create(
-                parent={"database_id": self.settings.notion_database_id_post_halakha},
-                properties=properties,
-                children=children
+            # Utiliser le timeout configuré pour les requêtes Notion
+            response = await asyncio.wait_for(
+                asyncio.to_thread(
+                    self.notion.pages.create,
+                    parent={"database_id": self.settings.notion_database_id_post_halakha},
+                    properties=properties,
+                    children=children
+                ),
+                timeout=self.settings.notion_timeout
             )
             
             logger.info(f"Page Notion créée avec succès. ID: {response['id']}")
             return response['id']
             
+        except asyncio.TimeoutError:
+            logger.error(f"⏱️ Timeout Notion dépassé ({self.settings.notion_timeout}s)")
+            raise NotionServiceError(f"Timeout Notion dépassé ({self.settings.notion_timeout}s)")
         except APIResponseError as e:
             logger.error(f"Erreur de l'API Notion lors de la création de la page : {e.code} - {e.body}")
             raise NotionServiceError(f"Erreur API Notion: {e.body}")
@@ -216,13 +225,21 @@ class NotionService:
         properties = await self._build_page_properties(processed_data, add_day, image_url, status)
         
         try:      
-            response = self.notion.pages.create(
-                parent={"database_id": self.settings.notion_database_id_post_halakha},
-                properties=properties
+            # Utiliser le timeout configuré pour les requêtes Notion
+            response = await asyncio.wait_for(
+                asyncio.to_thread(
+                    self.notion.pages.create,
+                    parent={"database_id": self.settings.notion_database_id_post_halakha},
+                    properties=properties
+                ),
+                timeout=self.settings.notion_timeout
             )
             logger.info(f"✅ Page Notion créée avec succès. ID: {response['id']}")
             return response
             
+        except asyncio.TimeoutError:
+            logger.error(f"⏱️ Timeout Notion dépassé ({self.settings.notion_timeout}s)")
+            raise NotionServiceError(f"Timeout Notion dépassé ({self.settings.notion_timeout}s)")
         except APIResponseError as e:
             logger.error(f"Erreur de l'API Notion lors de la création de la page : {e.code} - {e.body}")
             raise NotionServiceError(f"Erreur API Notion: {e.body}")

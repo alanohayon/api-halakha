@@ -61,15 +61,27 @@ async def process_halakha_to_notion(
     """
     Traite une halakha avec OpenAI et la publie sur Notion.
     
-    Args:
-        content: Le texte complet de la halakha à analyser
-        schedule_days: Nombre de jours à ajouter pour la date de publication (0-100)
-        
-    Returns:
-        HalakhaNotionPost: Réponse contenant l'URL de la page Notion créée
-        
-    Raises:
-        HTTPException: Si erreur lors du traitement
+    **Fonctionnalités :**
+    - Analyse du contenu avec OpenAI GPT pour structurer la halakha
+    - Génération automatique de titre, résumé et tags
+    - Création d'une page Notion avec mise en forme professionnelle
+    - Sauvegarde dans Supabase pour archivage
+    - Support des images (optionnel)
+    - Programmation de publication (délai en jours)
+    
+    **Paramètres :**
+    - `content` : Texte complet de la halakha (10-10000 caractères)
+    - `schedule_days` : Délai de publication en jours (0-100)
+    - `last_img` : Sauvegarder la dernière image trouvée (booléen)
+    
+    **Retour :**
+    - URL de la page Notion créée
+    - Métadonnées de la halakha traitée
+    
+    **Exemples d'utilisation :**
+    - Publication immédiate : `schedule_days=0`
+    - Publication dans 7 jours : `schedule_days=7`
+    - Avec image : `last_img=true`
     """
     logger.info(f"🔄 Requête reçue pour traiter une halakha vers Notion")
     
@@ -93,7 +105,7 @@ async def process_halakha_to_notion(
         sanitized_content = sanitize_json_text(content.strip())
         
         # Lancer le processus complet via ProcessingService (avec sauvegarde Supabase)
-        notion_url = await processing_service.process_halakha_complete(
+        notion_url = await processing_service.post_halakha_complete(
             halakha_content=sanitized_content,
             add_day_for_notion=schedule_days,
             last_image=last_img  # Save la derniere image dans supabase puis dans notion

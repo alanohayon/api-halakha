@@ -2,10 +2,11 @@
 services:
   api:
     build: .
-    ports:
-      - "8000:8000"
     env_file:
       - .env
+    ports:
+      - "8000:8000"
+    
     environment:
       # API Configuration
       - APP_NAME=Halakha API

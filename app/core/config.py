@@ -41,30 +41,12 @@ class Settings(BaseSettings):
     )
     
     # ============================================================================
-    # S3 STORAGE CONFIGURATION (Supabase Storage)
-    # ============================================================================
-    endpoint_s3: Optional[str] = Field(
-        default=None, 
-        description="Endpoint S3 pour Supabase Storage"
-    )
-    region_s3: Optional[str] = Field(
-        default=None, 
-        description="Région S3 pour Supabase Storage"
-    )
-    key_store_image: Optional[str] = Field(
-        default=None, 
-        description="Clé d'accès S3 pour le stockage d'images"
-    )
-   
-    
-    
-    # ============================================================================
     # OPENAI CONFIGURATION
     # ============================================================================
     openai_api_key: Optional[str] = Field(
         None, 
         description="Clé API OpenAI",
-        min_length=20
+        min_length=40
     )
     openai_organization_id: Optional[str] = Field(
         None, 
@@ -84,10 +66,6 @@ class Settings(BaseSettings):
         None, 
         description="ID de l'assistant Halakha OpenAI"
     )
-    asst_prompt_dalle: Optional[str] = Field(
-        None, 
-        description="ID de l'assistant DALL-E OpenAI"
-    )
     asst_insta_post: Optional[str] = Field(
         None, 
         description="ID de l'assistant post Instagram OpenAI"
@@ -103,7 +81,7 @@ class Settings(BaseSettings):
     notion_api_token: Optional[str] = Field(
         None, 
         description="Token d'API Notion",
-        min_length=20
+        min_length=40
     )
     notion_database_id_post_halakha: Optional[str] = Field(
         None, 
@@ -206,8 +184,13 @@ class Settings(BaseSettings):
     # SECURITY CONFIGURATION
     # ============================================================================
     secret_key: str = Field(
-        default="your-secret-key-change-in-production",
-        description="Clé secrète pour les tokens JWT",
+        ...,  # Obligatoire - pas de valeur par défaut
+        description="Clé secrète pour les tokens JWT (OBLIGATOIRE)",
+        min_length=32
+    )
+    api_key: str = Field(
+        ...,  # Obligatoire pour l'authentification API
+        description="Clé API pour l'authentification des requêtes (OBLIGATOIRE)",
         min_length=32
     )
     access_token_expire_minutes: int = Field(
@@ -215,6 +198,34 @@ class Settings(BaseSettings):
         ge=5,
         le=1440,
         description="Durée d'expiration du token d'accès en minutes"
+    )
+    
+    # ============================================================================
+    # TIMEOUTS CONFIGURATION (PRODUCTION OPTIMIZED)
+    # ============================================================================
+    openai_timeout: int = Field(
+        default=300,  # 5 minutes au lieu de 1h
+        ge=60,
+        le=600,
+        description="Timeout OpenAI en secondes"
+    )
+    notion_timeout: int = Field(
+        default=60,  # 1 minute
+        ge=30,
+        le=120,
+        description="Timeout Notion en secondes"
+    )
+    supabase_timeout: int = Field(
+        default=30,  # 30 secondes
+        ge=10,
+        le=60,
+        description="Timeout Supabase en secondes"
+    )
+    request_timeout: int = Field(
+        default=120,  # 2 minutes pour les requêtes API
+        ge=30,
+        le=300,
+        description="Timeout général des requêtes en secondes"
     )
     
     # ============================================================================
@@ -235,7 +246,7 @@ class Settings(BaseSettings):
     # ============================================================================
     # VALIDATORS
     # ============================================================================
-    
+
     @field_validator("backend_cors_origins", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
@@ -281,6 +292,17 @@ class Settings(BaseSettings):
             raise ValueError("supabase_url doit être une URL Supabase valide")
         return v.rstrip("/")
     
+    @field_validator("secret_key", mode="after")
+    @classmethod
+    def validate_secret_key(cls, v: str) -> str:
+        """Valide la clé secrète"""
+        if v == "your-secret-key-change-in-production":
+            raise ValueError(
+                "SECURITE: La clé secrète par défaut est interdite. "
+                "Configurez SECRET_KEY dans vos variables d'environnement."
+            )
+        return v
+    
     # ============================================================================
     # PROPERTIES UTILITAIRES
     # ============================================================================
@@ -289,16 +311,6 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         """Détermine si l'environnement est en production"""
         return not self.debug and os.getenv("ENVIRONMENT", "").upper() == "PRODUCTION"
-    
-    @property
-    def is_development(self) -> bool:
-        """Détermine si l'environnement est en développement"""
-        return self.debug or os.getenv("ENVIRONMENT", "").upper() == "DEVELOPMENT"
-    
-    @property
-    def is_testing(self) -> bool:
-        """Détermine si l'environnement est en test"""
-        return os.getenv("ENVIRONMENT", "").upper() == "TESTING"
     
     @property
     def database_config(self) -> dict:
@@ -319,7 +331,7 @@ class Settings(BaseSettings):
             "allow_origins": self.backend_cors_origins,
             "allow_credentials": True,
             "allow_methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-            "allow_headers": ["*"],
+            "allow_headers": ["Authorization", "Content-Type", "X-API-Key"],
         }
 
 # ============================================================================
@@ -333,43 +345,3 @@ def get_settings() -> Settings:
 
 # Instance globale pour compatibilité
 settings = get_settings()
-
-# Fonction de validation des paramètres critiques
-def validate_critical_settings() -> None:
-    """Valide les paramètres critiques au démarrage"""
-    critical_vars = [
-        "supabase_url",
-        "supabase_anon_key", 
-        "supabase_service_key",
-        "database_url"
-    ]
-    
-    missing_vars = []
-    for var in critical_vars:
-        if not getattr(settings, var, None):
-            missing_vars.append(var)
-    
-    if missing_vars:
-        raise ValueError(
-            f"Variables d'environnement manquantes: {', '.join(missing_vars)}. "
-            "Vérifiez votre fichier .env"
-        )
-
-# Fonction pour obtenir les paramètres de développement
-def get_development_settings() -> Settings:
-    """Retourne les paramètres optimisés pour le développement"""
-    dev_settings = get_settings()
-    dev_settings.debug = True
-    dev_settings.database_echo = True
-    dev_settings.log_level = "DEBUG"
-    return dev_settings
-
-# Fonction pour obtenir les paramètres de test
-def get_test_settings() -> Settings:
-    """Retourne les paramètres optimisés pour les tests"""
-    test_settings = get_settings()
-    test_settings.debug = True
-    test_settings.database_echo = False
-    test_settings.log_level = "WARNING"
-    test_settings.backend_cors_origins = ["http://testserver"]
-    return test_settings

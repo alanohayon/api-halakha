@@ -1,5 +1,6 @@
 import logging
 import os
+import asyncio
 from supabase import SupabaseException
 from typing import List, Dict, Optional
 from app.utils.performance import measure_execution_time
@@ -40,14 +41,23 @@ class SupabaseService:
     async def get_halakhot(self, skip: int = 0, limit: int = 100) -> Optional[List[Dict]]:
         """Récupérer les halakhot avec pagination"""
         try:
-            response = (
-                self.client.table('halakhot')
-                .select('*')
-                .range(skip, skip + limit - 1)
-                .execute()
+            # Utiliser le timeout configuré pour les requêtes Supabase
+            response = await asyncio.wait_for(
+                asyncio.to_thread(
+                    lambda: (
+                        self.client.table('halakhot')
+                        .select('*')
+                        .range(skip, skip + limit - 1)
+                        .execute()
+                    )
+                ),
+                timeout=self.settings.supabase_timeout
             )
 
             return response.data
+        except asyncio.TimeoutError:
+            logger.error(f"⏱️ Timeout Supabase dépassé ({self.settings.supabase_timeout}s)")
+            raise DatabaseError(f"Timeout Supabase dépassé ({self.settings.supabase_timeout}s)")
         except SupabaseException as e:
             logger.error(f"SupabaseException get_halakhot: {e}")
             raise map_supabase_error({"message": str(e)}, "Récupération des halakhot")
@@ -58,13 +68,22 @@ class SupabaseService:
     async def get_halakha_by_id(self, halakha_id: int) -> Optional[Dict]:
         """Récupérer une halakha par ID"""
         try:
-            response = (
-                self.client.table('halakhot')
-                .select('*')
-                .eq('id', halakha_id)
-                .execute()
+            # Utiliser le timeout configuré pour les requêtes Supabase
+            response = await asyncio.wait_for(
+                asyncio.to_thread(
+                    lambda: (
+                        self.client.table('halakhot')
+                        .select('*')
+                        .eq('id', halakha_id)
+                        .execute()
+                    )
+                ),
+                timeout=self.settings.supabase_timeout
             )
             return response.data[0] if response.data else None
+        except asyncio.TimeoutError:
+            logger.error(f"⏱️ Timeout Supabase dépassé ({self.settings.supabase_timeout}s)")
+            raise DatabaseError(f"Timeout Supabase dépassé ({self.settings.supabase_timeout}s)")
         except SupabaseException as e:
             logger.error(f"SupabaseException get_halakha_by_id: {e}")
             raise map_supabase_error({"message": str(e)}, f"Récupération de la halakha {halakha_id}")

@@ -3,7 +3,7 @@ import json
 import logging
 import asyncio
 from openai import OpenAI, OpenAIError, APITimeoutError, RateLimitError, APIConnectionError
-from app.core.config import get_settings
+from app.core.config import get_settings, settings
 from app.utils.performance import measure_execution_time, measure_with_metadata
 from app.core.exceptions import OpenAIServiceError
 
@@ -82,11 +82,13 @@ class OpenAIService:
         except Exception as e:
             logger.error(f"Erreur lors de la suppression du thread : {e}")
 
-    async def _wait_on_run(self, run, timeout: int = 3600, poll_interval: float = 4.0):
+    async def _wait_on_run(self, run, timeout: int = None, poll_interval: float = 3.0):
         """
-        Poll le statut du run toutes les 4s, timeout à 1h pour les traitements longs.
+        Poll le statut du run toutes les 3s, timeout configuré depuis settings.
         Retourne l'objet run final.
         """
+        if timeout is None:
+            timeout = self.settings.openai_timeout
         
         start = time.time()
  

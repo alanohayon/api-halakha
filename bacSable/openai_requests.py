@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 import openai
 from openai import OpenAIError, OpenAI, APITimeoutError, RateLimitError, APIConnectionError
 
+from app.core.config import settings
+
 
 class OpenaiRequests:
 
@@ -194,21 +196,7 @@ class OpenaiRequests:
     def generate_image(self, text_img):
 
         prompt = f"""
-          Le rendu que tu vois ici est basé sur un style graphique flat design moderne et minimaliste, souvent utilisé dans l’illustration éditoriale, les applications mobiles et les interfaces web contemporaines. Voici les détails du style utilisé :
-
-🎨 Style graphique :
-	•	Flat design : Sans effets de textures, d’ombres réalistes ou de dégradés complexes. Tout est en aplats de couleurs.
-	•	Palette douce et chaleureuse : Des tons beige, crème, bleu nuit, et blanc cassé pour créer une ambiance calme et respectueuse.
-	•	Contours simples et lisses : Pas de détails superflus, des lignes nettes et épurées, avec un tracé uniforme.
-	•	Silhouettes stylisées : Les personnages sont simplifiés, sans traits de visage complexes (yeux, bouche très discrets), mais conservant assez d’expression corporelle pour transmettre une émotion.
-	•	Proportions réalistes, mais adoucies : Le corps est proche de la réalité mais légèrement arrondi pour un effet plus doux et apaisant.
-
-🖌️ Style d’illustration :
-	•	Inspiré du style vectoriel : Comme ce qu’on trouve dans les outils comme Adobe Illustrator ou Figma.
-	•	Ambiance “editorial illustration” : Un style souvent vu dans les magazines, journaux ou blogs pour représenter des scènes de vie de façon élégante et non intrusive.
-	•	Statique mais narratif : L’image capture un moment figé mais chargé de sens, dans un cadre domestique familier.
-	
-	Text:
+         
         {text_img}
         
                  """
@@ -224,7 +212,8 @@ class OpenaiRequests:
             )
 
             image_url = img.data[0].url # ✅ URL de l’image
-            download_response = requests.get(image_url)
+            # Utiliser un timeout pour le téléchargement d'image
+            download_response = requests.get(image_url, timeout=settings.openai_timeout)
 
             if download_response.status_code == 200:
                 downloads_folder = os.path.expanduser("~/Downloads")
