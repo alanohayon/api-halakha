@@ -118,7 +118,7 @@ class NotionRequests:
 
             # Pour les autres champs texte, on construit un objet rich_text.
             for key in ["text_post", "legend", "content"]:
-                if len(result_ai[key]) < 2000:
+                if len(result_ai[key]) < 1980:
                     if key in result_ai:
                         properties[key] = {
                             "rich_text": [

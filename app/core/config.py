@@ -89,6 +89,19 @@ class Settings(BaseSettings):
     )
     
     # ============================================================================
+    # TEMPLATED.IO CONFIGURATION
+    # ============================================================================
+    templated_api_key: Optional[str] = Field(
+        None,
+        description="Clé API Templated.io",
+        min_length=20
+    )
+    templated_template_id: Optional[str] = Field(
+        None,
+        description="ID du template Templated.io pour la génération d'images/PDF"
+    )
+    
+    # ============================================================================
     # API CONFIGURATION
     # ============================================================================
     app_name: str = Field(

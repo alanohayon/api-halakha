@@ -31,6 +31,11 @@ class NotionServiceError(HalakhaAPIException):
     def __init__(self, message: str, status_code: int = 503, details: Optional[Dict[str, Any]] = None):
         super().__init__(message, status_code=status_code, code="NOTION_SERVICE_ERROR", details=details)
 
+class TemplatedServiceError(HalakhaAPIException):
+    """Raised when Templated.io service encounters an error"""
+    def __init__(self, message: str, status_code: int = 503, details: Optional[Dict[str, Any]] = None):
+        super().__init__(message, status_code=status_code, code="TEMPLATED_SERVICE_ERROR", details=details)
+
 class DatabaseError(HalakhaAPIException):
     """Raised when database operations fail"""
     def __init__(self, message: str, status_code: int = 500, details: Optional[Dict[str, Any]] = None):
